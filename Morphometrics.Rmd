@@ -1,0 +1,73 @@
+---
+title: "Morphometrics"
+author: "Michelle DePrenger-Levin"
+date: "November 11, 2016"
+output: pdf_document
+---
+
+```{r, eval=FALSE}
+install.packages("shapes")
+library(shapes)
+```
+
+
+<http://life.bio.sunysb.edu/morph/>    
+> software    
+  > Utility programs    
+  Download tpsUtil  
+  > Thin-plate spline
+  Downlaod tpsRelw   
+  Download tpsSmall     
+
+<http://swordtail.tamu.edu/anyfish/Modeling_body_and_fin_shape_%28morphometrics%29>
+1. Build a TPS file using tpsUtil   
+2. Open tpsUtil    
+  * Build tps file from images      
+  * Input directory -> go to file with images   
+  * Output to create file where you'll save info  
+  * Setup - check all of images you want, create   
+  
+3. Can view that setup file in a text editor   
+  * LM=0 : "landmark ID"    
+  * info for each image selected     
+  * after the landmarks are set, that LM will have numbers for each.    
+  
+4. Landmark tps files    
+  * Open tpsDig    
+  * Open tps file    
+  * Input source, open the tps file   
+  * Set scale: Options>Image tools or tool bar picture with tools images    
+  ** a) Measure tab    
+        Reference length - scale to image   
+        Set scale > click and click along ruler   
+     b) Apply landmark > Digitize landmarks (circle and cross image button)    
+        cursor becomes circle cross   
+        click on landmarks - the first and 22nd are identical (or some number - the midway?)    
+        match landmarking guide - exact order of landmarks in each image    
+        number and order must match all     
+        File > Save data > save and overwrite  
+      c) Visulaization aids    
+        * Menu > preliminatries > option: create or edit wireframe   
+        * Menu > file > option: import outline file    
+      d) Convert TPS into NTS     
+        * TPSUtil, convert TPS/NTS file   
+        * check box for using the sacale factor    
+        * check box for using image names as labels  
+      e) Procrustes superimposed   
+        * Menu > preliminatries> option: Procrustes fit  
+        
+5. TPSSmall - test whether variation in shape is too large   
+  * regresses through the origin the set of Euclidean distances in the Euclidean space onto the set of Procrutes shape distances      
+  * want approximation to give regression with both slope and correlation virtually equal to 1    
+
+6. Consensus file (An average of a population)   
+  * Open tpsRelw    
+      * Landmark all LMs, combine and generate a consensus for that population   
+  * Data > open the TPS file   
+  * Compute > Consensus   
+    * Display > Consensus   
+      * see the cons   
+      * File > Save > Save consensus... > Save with ".TPS"    
+
+  
+  

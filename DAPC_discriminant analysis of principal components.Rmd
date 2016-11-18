@@ -1,0 +1,139 @@
+---
+title: "DAPC_Jombart"
+author: "Michelle DePrenger-Levin"
+date: "November 15, 2016"
+output: html_document
+---
+
+Packages
+```{r}
+library(adegenet)
+library(pegas)
+```
+
+```{r}
+rm(list=ls())
+
+```
+
+As opposed to PCA or PCoA/MDS which look at total variance = between groups + within groups, DAPC optomizes between whilc minimizing within    
+
+1. Requires prior groups to be defined. Generally cluster wtih k-means where maximimize between groups variance   
+2. So run the clustering k-means algorithm on data transformed through a PCA (instead of raw data) to speed up clustering (fewer variables)    
+#Find clusters    
+uses genind (microsats) or genlight (SNPs)   
+<https://r-forge.r-project.org/scm/viewvc.php/*checkout*/www/files/adegenet-dapc.pdf?revision=899&root=adegenet>   
+```{r}
+file.show(system.file("files/nancycats.dat", package="adegenet"))
+
+
+data(dapcIllus)
+class(dapcIllus)
+#use first dataset of list
+x<- dapcIllus$d
+x
+
+#How many PCs to keep?
+xvalDapc(x@tab, x@pop)
+
+#in this example there seem to be 24 populations in the simulated data
+grp <- find.clusters(x, max.n.clust = 40)
+
+names(grp)
+grp$Kstat
+grp$size
+
+table(pop(x),grp$grp)
+
+table.value(table(pop(x), grp$grp), col.lab = paste("inf", 1:6),
+            row.lab = paste("ori", 1:6))
+
+
+```
+
+DAPC -     
+    1) different from STRUCTURE, still how proximities of individuals to the different clusters  
+    2) Membership probabilities indicate how clear-cut genetic clusters are   
+    3) loose clusters = flat distributions of membership probabilities (admixture!)  
+    4) Using allele loadings, can predict new indiviudals onto the factorial planes  
+    
+- transforms data with PCA then performas a discriminant analysis on retained PCs   
+```{r}
+#infered groups from find.clusters()
+
+dapc1 <- dapc(x, grp$grp)
+
+#Want to retain few PCs without losing infomration (look for asymptote)
+# I selected 5000 discriminant functions to retain and it says it saved 23
+
+scatter(dapc1)
+
+# customize figure
+scatter(dapc1, posi.da = "topleft", bg = "white", pch = 1:24)
+
+myCol <- rep(c("darkblue", "purple", "green", "black", "red", "blue"),4)
+scatter(dapc1, posi.da = "topright", bg = "white", pch = 1:24,
+        cstar = 0, col = myCol, scree.pca = TRUE, posi.pca = "topleft")
+
+#remove labels
+scatter(dapc1, scree.da = FALSE, bg = "white", pch = 20, cell = 0,
+        cstar = 0, col = myCol, solid = 0.4, cex = 3, clab = 0, leg = TRUE,
+        txt.leg = paste("Cluster", 1:6))
+
+
+scatter(dapc1, 1, 1, col = myCol, bg = "white", scree.da = FALSE,
+        legend = FALSE, solid = 0.4)
+
+```
+
+Compute the contributions of the alleles
+```{r}
+myPal <- colorRampPalette(c("blue", "gold", "red"))
+
+contrib <- loadingplot(dapc1$var.contr, axis = 2, thres = 0.025, lab.jitter = 1)
+
+```
+
+
+<http://stackoverflow.com/questions/32704902/discriminant-analysis-of-principal-components-and-how-to-graphically-show-the-di>
+
+Phfo_trunkated_data_75per_Riser the data tab is the structure data
+
+Test Phacelia
+```{r}
+df.microsat <- read.csv("P:/hackathon/Phacelia/Phfo_arlequin format.csv", header = FALSE)
+D <- df2genind(df.microsat[,-c(1:3)], NA.char = "-9", strata = df.microsat$V2, 
+               pop = df.microsat$V2,
+               type = "codom", ind.names = df.microsat$V1, ncode=1)
+class(D)
+D
+D@pop <- as.factor(sub("^([[:alpha:]]*).*", "\\1", df.microsat$V1))
+
+
+#Import as a loci object
+D.loci <- read.loci("P:/hackathon/Phacelia/Phfo_arlequin format.csv", 
+                    allele.sep=",", header = FALSE)
+
+```
+
+```{r}
+grp <- find.clusters(D, max.n.clust = 15)
+names(grp)
+
+#actual groups
+table(pop(D), grp$grp)
+```
+
+retain all PCs when k-means clustering   
+after k groups, do DAPC but don't retain more than 1/3 of the total number of PCs, retain all of the DFs (what's a DF?)   
+optim.a.score() to determine best number of PCs to retain
+
+
+#sequences
+```{r}
+#Fasta to DNAbin
+
+
+#DNAbin to genind
+
+```

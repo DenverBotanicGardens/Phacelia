@@ -1,0 +1,22 @@
+---
+title: "IBD"
+author: "Michelle DePrenger-Levin"
+date: "November 17, 2016"
+output: html_document
+---
+
+ape
+ade4
+
+Isolation by distance (IBD) and Isolation by environment (IBE)
+1) Mantel test
+vegan - Forester et al 2016    
+```{r}  
+
+```
+
+
+
+
+redundancy analysis (RDA): combines PCA on allele frequencies and multiple regression
+Meirmans Molecular Ecology "Seven common mistakes in pouplaiton genetics and how to avoid them"

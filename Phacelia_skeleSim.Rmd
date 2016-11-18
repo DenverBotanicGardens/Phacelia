@@ -1,0 +1,23 @@
+---
+title: "Simulations_Phacelia"
+author: "Michelle DePrenger-Levin"
+date: "November 7, 2016"
+output: html_document
+---
+
+Use skeleSim   
+follow Gompert and Buerkle   
+1-D stepping-stone model (dispersal only between adjacent patches)
+carrying capacity of 5000 individuals
+mean fecundity of 2     
+secondary contact or pirmary divergence
+
+```{r}
+library(skeleSim)
+
+setwd(getwd())
+
+
+skeleSimGUI()
+
+```

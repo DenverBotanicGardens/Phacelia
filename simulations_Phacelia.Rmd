@@ -1,0 +1,30 @@
+---
+title: "Phacelia_3sp"
+author: "Jessie/Michelle"
+date: "November 16, 2016"
+output: pdf_document
+---
+
+Update R with installr   
+```{r, eval=FALSE}
+if(!require(installr)) {
+install.packages("installr"); require(installr)}
+
+updateR() 
+
+```
+
+check fsc on computer
+```{r}
+system("fsc25", intern = TRUE) #Found it! status 1 good, if it were error 127 would mean it couldn't see it
+
+```
+
+
+```{r}
+#install.packages("skeleSim")
+library(skeleSim)
+skeleSimGUI()
+```
+
+

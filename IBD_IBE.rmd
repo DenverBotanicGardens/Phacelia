@@ -1,0 +1,118 @@
+---
+title: "IBD"
+author: "Michelle DePrenger-Levin"
+date: "November 17, 2016"
+output: html_document
+---
+
+ape
+ade4
+
+Isolation by distance (IBD) and Isolation by environment (IBE)
+1) Mantel test
+vegan - Forester et al 2016    
+spatial eigenfunction analysis and multivariate linear regression (Diniz-Filho et al. 2013 and Legendre et al. 2015)  
+i - PCoA to pairwise multivariate genetic distance matrix (Bray-Curtis)
+ii - keep PCoA axes based on the broken-stick criterion (Legendre & Legendre 2012)   
+iii - response data = kept axes, for redundancy analysis - mutivariate linear regression (RDA)
+iv - predictors are spatial eigenfunctions (distance-based Moran's eigenvector maps, dbMEMs)
+v - forward selection to reduce number of dbMEMs (Blanchet et al. 2008)
+vi - calcuate r^2 assess signficantion using 1000 permutations   
+<https://github.com/rforge/sedar/tree/master/pkg> 
+both PCNM and packfor
+```{r}
+library(devtools)
+install.packages("vegan")
+#install_github("vegandevs/vegan")
+library(vegan)
+#install.packages("PCNM") # not avaliable for 3.3.1, a funciton in vegan?
+?pcnm
+library(boot)
+?packfor
+#install_git("rforge/sedar/pkg/AEM")
+#install_github("rforge/sedar/pkg/PCNM")
+
+install.packages("ecodist")
+library(ecodist)
+
+
+
+```
+
+
+Diniz-Filho et al 2013   
+```{r}
+library(raster)
+library(prism)
+
+options(prism.path = "Q:/Research/All_Projects_by_Species/Astragalus SPECIES/Astragalus_microcymbus/PRISM_asmiclimate")
+
+#Precipitation total, rain and snow
+get_prism_monthlys(type="ppt", mon = 1:12, keepZip = FALSE, years = 1980:1993)
+
+#Maximum temperature (average)
+get_prism_monthlys(type="tmax", mon = 1:12, keepZip = FALSE, years = 1980:1993)
+
+#Minimum temperature (average)
+get_prism_monthlys(type="tmin", mon = 1:12, keepZip = FALSE, years = 1980:1993)
+
+
+ph.points <- read.csv("P:/hackathon/Phacelia/Phacelia project information with GPS data 2016.csv")
+
+ph.points1 <- ph.points[!is.na(ph.points$Easting),]
+
+head(ph.points1)
+ph.ll <- spTransform(SpatialPoints(cbind(ph.points1$Easting,ph.points1$Northing),
+                                   proj4string = CRS("+proj=utm +zone=13 + datum=WGS84")),
+                     CRS("+proj=longlat +datum=WGS84"))
+```
+
+```{r}
+
+ph.cols <- data.frame(coordinates(ph.ll),ph.points1$Population,ph.points1$Ind_Num)
+
+
+maxs <- grep("tmax", ls_prism_data(absPath=TRUE)[,2])
+mins <- grep("tmin", ls_prism_data(absPath = TRUE)[,2])
+ppt <- grep("ppt", ls_prism_data(absPath = TRUE)[,2])
+
+avgTemps.max <- lapply(maxs, function(x){
+  rastertemps <- raster(ls_prism_data(absPath=TRUE)[x,2])
+  data.frame(data = extract(rastertemps, ph.cols[,c("coords.x1","coords.x2")]), 
+             date = ls_prism_data()[x,])
+})
+
+avgTemps.min <- lapply(mins, function(x){
+  rastertemps <- raster(ls_prism_data(absPath=TRUE)[x,2])
+  data.frame(data = extract(rastertemps, ph.cols[,c("coords.x1","coords.x2")]), 
+             date = ls_prism_data()[x,])
+})
+
+avgPrecip <- lapply(ppt, function(x){
+  rastertemps <- raster(ls_prism_data(absPath=TRUE)[x,2])
+  data.frame(data = extract(rastertemps, ph.cols[,c("coords.x1","coords.x2")]), 
+             date = ls_prism_data()[x,])
+})
+
+mins.avg <- do.call(rbind, avgTemps.min)
+maxs.avg <- do.call(rbind, avgTemps.max)
+ppt.avg <- do.call(rbind, avgPrecip)
+
+
+```
+
+soils <https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/?cid=nrcs142p2_053627>
+Try to get netCDF data for these points
+```{r}
+
+
+
+```
+
+##########start here###########
+follow vegan tutorial, trying to get environmental variables   
+<http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf>
+
+
+redundancy analysis (RDA): combines PCA on allele frequencies and multiple regression
+Meirmans Molecular Ecology "Seven common mistakes in pouplaiton genetics and how to avoid them"
