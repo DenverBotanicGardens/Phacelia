@@ -12,9 +12,10 @@ library(maptools)
 library(devtools)
 library(ecodist)
 library(vegan)
+library(MASS)
 library(prism)
 library(dismo)
-
+library(ggplot2)
 
 ```
 
@@ -59,7 +60,7 @@ Data from USDA <http://websoilsurvey.nrcs.usda.gov/app/WebSoilSurvey.aspx>
  1. Analsis Tools -> Overlay -> Spatial Join 2. In spatial join dialog box: -Target features = Points -Join features = Polygons -Join Operation = Join one to one -Right click on 'yield' field in join feature field map, select properties, choose 'Maximum' as merge rule -Match option = Intersect 
 Try to get netCDF data for these points
 ```{r}
-soils <- read.delim("P:/hackathon/Phacelia/Walden_Phacelia/SoilsPerPoints.txt",
+soils <- read.delim("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Walden_Phacelia/SoilsPerPoints.txt",
                     sep = ",")
 
 head(soils)
@@ -132,6 +133,7 @@ ppt.avg <- do.call(rbind, avgPrecip)
 
 <https://cran.r-project.org/web/packages/dismo/vignettes/sdm.pdf>   
 The code above returns a raster with the 18 bioclimate variables covering the whole world with a resoltion of 2.5 minutes of degrees:
+averaged over 1960-1990
 
 BIO1 = Annual Mean Temperature
 BIO2 = Mean Diurnal Range (Mean of monthly (max temp – min temp))
@@ -313,19 +315,36 @@ points(xy, cex=0.75, pch=20, col='blue')
 Raster data - predictor variables    
 ASCII files are slow
 ```{r}
+#get elevation from worldclim
+w <- getData('alt', country='USA')
+
 files <- list.files(path=paste("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/World BioClim Date/bio_2-5m_bil", 
                                sep = ''),
                     pattern='grd', full.names=TRUE)
 
+files2 <- list.files(path=paste("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/World BioClim Date",
+                                sep = ''),
+                     pattern='grd', full.names=TRUE)
+
+usa.alt <- raster("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/World BioClim Date/USA1_msk_alt.grd")
+
+m <- data.frame(long = c(max(ph.points@coords[,1]),min(ph.points@coords[,1])),
+                lat = c(max(ph.points@coords[,2]),min(ph.points@coords[,2])))
+cbind(m, alt = extract(w, m))
+
 # Don't know what the .grd.vat.cpg files are
 predictors <- stack(files[c(1,4:21)])
+
 #missing projection
 proj4string(predictors) <- CRS("+proj=longlat +datum=WGS84")
+proj4string(usa.alt) <- CRS("+proj=longlat +datum=WGS84")
 
 names(predictors)
 plot(predictors)
+plot(usa.alt)
 
 predictors <- crop(predictors, extent(r)+1)
+predictor.alt <- crop(files2)
 
 plot(predictors)
 
@@ -344,6 +363,9 @@ Create new predictor variables - example: use land cover data and focal() and cr
 #Extract values from rasters
 ```{r}
 presvals <- extract(predictors, ph.points)
+altvals <- extract(usa.alt, ph.points)
+
+cnts <- extract(ph.counties, ph.points)
 
 #set random seed to always create same random set of points
 set.seed(0)
@@ -354,22 +376,154 @@ absvals <- extract(predictors, backgr)
 
 # row for each point 
 pb <- c(rep(1, nrow(presvals)), rep(0, nrow(absvals)))
+cnts <- c(cnts$NAME_2, rep(0, nrow(absvals)))
 site <- c(soils.unique$Population, rep(0, nrow(absvals)))
-sdmdata <- data.frame(cbind(site, pb, rbind(presvals, absvals)))
+sdmdata <- data.frame(cnts, site, pb, rbind(presvals, absvals))
 
 #categorical variables   
 #SKIP
 sdmdata[,'biome'] <- as.factor(sdmdata[,'biome'])
 
 head(sdmdata)
+table(sdmdata$cnts)
 
-pairs(sdmdata[,2:20], cex=0.1, fig=TRUE)
+pairs(sdmdata[,4:22], cex=0.1, fig=TRUE)
 
-#too many, take out highly correlated ones
-cor.table <- cor(sdmdata[,2:20])
+#sdmdata[,3:22] <- sapply(sdmdata[,3:22], function(num) as.numeric(num))
+```
+
+#Model fitting   
+pb - presence vs background points for the three phacelia species
+```{r}
+m1 <- glm(pb ~ bio1 + bio13 + bio2 + bio3 + bio4 + bio9, data=sdmdata)
+class(m1)
+
+summary(m1)
+
+bc <- bioclim(presvals[,c('bio1','bio13','bio2','bio3','bio4','bio9')])
+class(bc)
+pairs(bc)
+```
+
+#Model evaluation
+```{r}
+#training data set
+samp <- sample(nrow(sdmdata), round(0.75 * nrow(sdmdata)))
+traindata <- sdmdata[samp,]
+
+traindata <- traindata[traindata[,'pb'] == 1, -(1:3)]
+
+testdata <- sdmdata[-samp,]
+bc <- bioclim(traindata)
+
+e <- evaluate(testdata[testdata$pb==1,], testdata[testdata$pb==0,], bc)
+plot(e, 'ROC')
+
+#Really want a k-fold data partitioning instead of single random sample
+#### START HERE on page 39 of the sdm vignette
+
 ```
 
 
+
+```{r}
+#too many, take out highly correlated ones
+cutoff <- 0.75
+cor.table <- cor(sdmdata[,-(1:3)])
+data <- as.data.frame(as.table(cor.table))
+combins <- combn(colnames(cor.table),2,FUN=function(x) paste(x,collapse="_"))
+cor.data <- data[data$Var1 != data$Var2, ]
+data <- cor.data[paste(cor.data$Var1, cor.data$Var2, sep="_") %in% combins,]
+exclude1 <- paste(data$Var2[abs(data$Freq)>cutoff],sep=",")
+exclude2 <- paste(data$Var1[abs(data$Freq)>cutoff],sep=",")
+
+
+#Which are correlated? 
+data.cor <- data[abs(data$Freq)>cutoff,]
+correlated <- c(grep(paste(c(exclude1,exclude2), collapse="|"),names(sdmdata), value=TRUE))
+
+pairs(sdmdata[,correlated], cex=0.1, fig=TRUE)
+
+forstep <- sdmdata[,c(grep(paste(exclude1, collapse="|"),
+                            names(sdmdata), value=TRUE, invert=TRUE))]
+
+pairs(forstep[,-(1:3)])
+
+pairs(sdmdata[,c(unique(exclude2),unique(exclude1))])
+```
+
+Step regression - which factors explain differences in species   
+convergence issues: logistf <http://cran.r-project.org/web/packages/logistf/logistf.pdf>
+```{r}
+glm(cnts~bio1+bio13+bio13+bio2+bio3+bio4+bio9,
+    data=forstep[cnts!="0",], family = binomial, control = list(maxit=50))
+
+step1 <- step(glm(cnts~bio1+bio13+bio13+bio2+bio3+bio4+bio9,
+                 data=forstep, family=binomial),control = list(maxit=70))
+
+#Don't need the background points for these
+ggplot(sdmdata[cnts!="0",], aes(x=cnts, y=bio2))+
+  geom_boxplot()
+
+# 3 same for Larimer and Grand
+ggplot(sdmdata[cnts!="0",], aes(bio1,bio4,colour=cnts))+ 
+  geom_point()
+
+#15 splits Jackson
+ggplot(sdmdata[cnts!="0",], aes(bio1,bio3,colour=cnts))+ 
+  geom_point()
+
+ggplot(sdmdata[cnts!="0",], aes(bio1,bio2,colour=cnts))+ 
+  geom_point()
+
+ggplot(sdmdata[cnts!="0",], aes(bio1,bio13,colour=cnts))+ 
+  geom_point()
+
+ggplot(sdmdata[cnts!="0",], aes(bio1,bio9,colour=cnts))+ 
+  geom_point()
+
+
+```
+
+Environmental factors and background points
+```{r}
+ggplot(sdmdata, aes(x=cnts, y=bio15))+
+  geom_boxplot()
+
+ggplot(sdmdata, aes(x=cnts, y=bio1))+
+  geom_boxplot()
+
+ggplot(sdmdata, aes(x=cnts, y=bio2))+
+  geom_boxplot()
+
+ggplot(sdmdata, aes(x=cnts, y=bio13))+
+  geom_boxplot()
+
+ggplot(sdmdata, aes(x=cnts, y=bio9))+
+  geom_boxplot()
+
+
+
+```
+
+
+
+#Ignore Grand
+```{r}
+sdmdata.phfo.phsc <- sdmdata[cnts=="Jackson"|cnts=="Larimer",]
+sdmdata.phfo.phsc$cnts <- factor(sdmdata.phfo.phsc$cnts)
+
+step1 <- step(glm(cnts~bio10+bio13+bio15+bio18+bio2+bio8,
+                 data=sdmdata.phfo.phsc, family=binomial),control = list(maxit=70))
+
+ggplot(sdmdata.phfo.phsc, aes(bio2, bio18, colour=cnts))+
+  geom_point()+
+  stat_ellipse()
+
+ggplot(sdmdata.phfo.phsc, aes(bio6, bio14, colour=cnts))+
+  geom_point()
+
+```
 
 
 
@@ -382,11 +536,29 @@ install.packages("climates") #nope, how?!
 ```
 
 
-
-
-
+Now have environmental variables (by going through the sdm vignette)
 follow vegan tutorial, trying to get environmental variables   
 <http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf>
+```{r}
+data(varespec)
+head(varespec)
+
+#instead of varespec will have bioph ## But I've got negative values so this isn't quite right
+# not the same, varespec are the species in each community, bioph is the bioclim per popuation
+bioph <- sdmdata[cnts!="0",-(1:3)]
+bioph.dis <- vegdist(bioph)
+vare.mds0 <- isoMDS(bioph.dis)
+
+```
+
+
+Pluess et al 20016 New Phytologist
+```{r}
+#PCA of factors
+
+
+
+```
 
 
 redundancy analysis (RDA): combines PCA on allele frequencies and multiple regression
