@@ -552,11 +552,71 @@ vare.mds0 <- isoMDS(bioph.dis)
 ```
 
 
+ecodist   
+simple mantel statistic  - degree of dissimilarity in one datset compared to detree of dissimilarity in another independently-derived dataset   
+<https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3873175/>   
+<http://www.molecularecologist.com/2015/06/ibeibd-contour-plots-in-r/>  
+
+```{r}
+
+
+
+```
+
 Pluess et al 20016 New Phytologist
 ```{r}
+#Variable factor map
+pca.space <- princomp(pca.ph[,-(1:3)], cor=TRUE)
+summary(pca.space)
+ph.load <- loadings(pca.space)
+ph.pc <- predict(pca.space)
+
+ph.pc <- data.frame(ph.pc, pca.ph)
+
+summary(lm(Comp.1~alt, data=ph.pc))
+
+rm(ph.pc)
 #PCA of factors
+pca.ph <- sdmdata[cnts!="0",]
+pca.ph$alt <- altvals
+
+cutoff <- 0.75
+cor.table <- cor(pca.ph[,-(1:3)])
+data <- as.data.frame(as.table(cor.table))
+combins <- combn(colnames(cor.table),2,FUN=function(x) paste(x,collapse="_"))
+cor.data <- data[data$Var1 != data$Var2, ]
+data <- cor.data[paste(cor.data$Var1, cor.data$Var2, sep="_") %in% combins,]
+exclude1 <- paste(data$Var2[abs(data$Freq)>cutoff],sep=",")
+exclude2 <- paste(data$Var1[abs(data$Freq)>cutoff],sep=",")
 
 
+#Which are correlated? 
+data.cor <- data[abs(data$Freq)>cutoff,]
+correlated <- c(grep(paste(c(exclude1,exclude2), collapse="|"),names(pca.ph), value=TRUE))
+
+pairs(pca.ph[,correlated[1:5]], cex=0.1, fig=TRUE)
+pairs(pca.ph[,correlated[6:10]], cex=0.1, fig=TRUE)
+
+forpca <- pca.ph[,c(grep(paste(exclude1, collapse="|"),
+                         names(pca.ph), value=TRUE, invert=TRUE))]
+
+
+
+ph.pca <- princomp(forpca[,-(1:3)], cor=TRUE)
+summary(ph.pca)
+ph.load <- loadings(ph.pca)
+ph.pc <- predict(ph.pca)
+
+ph.pc <- data.frame(ph.pc, pca.ph)
+
+summary(lm(Comp.1~alt, data=ph.pc))
+```
+
+
+```{r}
+ggplot(ph.pc, aes(Comp.1, Comp.2, colour = cnts))+
+  geom_point()+
+  stat_ellipse()
 
 ```
 
