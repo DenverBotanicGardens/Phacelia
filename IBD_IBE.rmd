@@ -16,6 +16,33 @@ library(MASS)
 library(prism)
 library(dismo)
 library(ggplot2)
+library(Imap)
+
+```
+
+Pairwise distance matrix
+```{r}
+ph.dist <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS centroids 2016_pdm.csv")
+
+head(ph.dist)
+#convert Northing Easting to lat long
+
+ph.ll <- spTransform(SpatialPoints(cbind(ph.dist$Easting,ph.dist$Northing),
+                          proj4string = CRS("+proj=utm +zone=13 + datus=WGS84")),
+            CRS("+proj=longlat +datum=WGS84"))
+
+ph.lls <- data.frame(coordinates(ph.ll))
+
+pairdist <- lapply(2:nrow(ph.lls), function(x){
+  gdist(lat.1=ph.lls$coords.x2[x-1], lon.1 = ph.lls$coords.x1[x-1], 
+        lat.2=ph.lls$coords.x2[x], lon.2 = ph.lls$coords.x1[x], units = "m")
+})
+
+
+ph.dist.eu <- dist(ph.lls)
+
+write.table(ph.dist.eu, "clipboard", sep="\t", row.names=FALSE, col.names = FALSE)
+ph.dist$Population
 
 ```
 

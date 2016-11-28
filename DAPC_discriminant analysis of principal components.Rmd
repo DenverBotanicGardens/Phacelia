@@ -16,6 +16,14 @@ rm(list=ls())
 
 ```
 
+Read in phacelia data  
+START HERE
+```{r}
+ph.loci <- read.loci("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Phfo_formatedadegenet.csv", 
+                     header=TRUE, allele.sep = "/")
+
+```
+
 As opposed to PCA or PCoA/MDS which look at total variance = between groups + within groups, DAPC optomizes between whilc minimizing within    
 
 1. Requires prior groups to be defined. Generally cluster wtih k-means where maximimize between groups variance   
@@ -113,6 +121,13 @@ D@pop <- as.factor(sub("^([[:alpha:]]*).*", "\\1", df.microsat$V1))
 #Import as a loci object
 D.loci <- read.loci("P:/hackathon/Phacelia/Phfo_arlequin format.csv", 
                     allele.sep=",", header = FALSE)
+
+
+#Import as Genpop input file
+ph1 <- read.genepop("Q:/Research/Lab/Projects/Phacelia formosula/Phfo_GenePop_FinalRISERgenpop.gen")
+
+class(ph1)
+ph1
 
 ```
 
