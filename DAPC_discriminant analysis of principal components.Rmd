@@ -16,14 +16,6 @@ rm(list=ls())
 
 ```
 
-Read in phacelia data  
-START HERE
-```{r}
-ph.loci <- read.loci("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Phfo_formatedadegenet.csv", 
-                     header=TRUE, allele.sep = "/")
-
-```
-
 As opposed to PCA or PCoA/MDS which look at total variance = between groups + within groups, DAPC optomizes between whilc minimizing within    
 
 1. Requires prior groups to be defined. Generally cluster wtih k-means where maximimize between groups variance   
@@ -109,20 +101,6 @@ Phfo_trunkated_data_75per_Riser the data tab is the structure data
 
 Test Phacelia
 ```{r}
-df.microsat <- read.csv("P:/hackathon/Phacelia/Phfo_arlequin format.csv", header = FALSE)
-D <- df2genind(df.microsat[,-c(1:3)], NA.char = "-9", strata = df.microsat$V2, 
-               pop = df.microsat$V2,
-               type = "codom", ind.names = df.microsat$V1, ncode=1)
-class(D)
-D
-D@pop <- as.factor(sub("^([[:alpha:]]*).*", "\\1", df.microsat$V1))
-
-
-#Import as a loci object
-D.loci <- read.loci("P:/hackathon/Phacelia/Phfo_arlequin format.csv", 
-                    allele.sep=",", header = FALSE)
-
-
 #Import as Genpop input file
 ph1 <- read.genepop("Q:/Research/Lab/Projects/Phacelia formosula/Phfo_GenePop_FinalRISERgenpop.gen")
 
@@ -131,24 +109,216 @@ ph1
 
 ```
 
+#Define useful clusters
 ```{r}
-grp <- find.clusters(D, max.n.clust = 15)
+grp <- find.clusters(ph1, max.n.clust = 40)
+# Choose the number of PCs to retain (>=1): 200 - to keep all
+# Choose the number of cluster (>=2): 10 - the elbow of the curve
+
+#actual group compared to populations
+table(pop(ph1), grp$grp)
+
+table.value(table(pop(ph1), grp$grp), col.lab = 1:10)
+```
+
+# How many clusters are useful to describe the data?
+```{r}
+# #1 transform data using PCA; #2 perform a Discriminant Analysis on retained PCs
+dapc1 <- dapc(ph1, grp$grp)
+  # 17 - retain as few as possible. STart to gain little more after about 40 PCs
+  # 9 - can retain all eigenvalues for small clusters (less than 10s)
+
+dapc1
+
+scatter(dapc1)
+```
+
+```{r}
+# keep the original 14 populations
+dapc(ph1)
+dapc.assigned <- dapc(ph1, n.pca = 15, n.da = 13)
+scatter(dapc.assigned, scree.da = FALSE, cell = 1.5, 
+        bg = "white", cstar=0)
+
+dapc.assigned$var.contr
+
+set.seed(4)
+
+contrib <- loadingplot(dapc.assigned$var.contr, axis = 2,
+                       thres = 0.07, lab.jitter = 1)
+
+```
+
+# 14 populations
+```{r}
+dim(dapc.assigned$posterior)
+
+summary(dapc.assigned) # assign.per.pop lower numbers, not as good assignment to a cluster
+
+compoplot(dapc.assigned, posi = "bottomleft", txt.leg = 1:14,
+          ncol = 1, xlab = "individuals")
+
+# Which individuals have less than 90% probability of membership in a single cluster
+temp.14 <- which(apply(dapc.assigned$posterior, 1, function(e) all(e < 0.9)))
+temp.14
+
+compoplot(dapc.assigned, subset = temp, posi = "bottomright", txt.leg = 1:14, ncol = 2)
+```
+
+
+# 10 groups
+```{r}
+dim(dapc1$posterior)
+
+summary(dapc1)
+
+compoplot(dapc1, posi = "bottomleft", txt.leg = 1:10,
+          ncol = 1, xlab = "individuals")
+
+# Which individuals have less than 90% probability of membership in a single cluster
+temp <- which(apply(dapc1$posterior, 1, function(e) all(e < 0.9)))
+temp
+
+compoplot(dapc1, subset = temp, posi = "bottomright", txt.leg = 1:10, ncol = 2)
+```
+
+# Two groups
+```{r}
+dim(dapc2$posterior)
+
+summary(dapc2)
+
+compoplot(dapc2, posi = "bottomleft", txt.leg = 1:2,
+          ncol = 1, xlab = "individuals")
+
+# Which individuals have less than 90% probability of membership in a single cluster
+temp.2 <- which(apply(dapc2$posterior, 1, function(e) all(e < 0.9)))
+temp.2
+
+compoplot(dapc2, subset = temp.2, posi = "bottomright", txt.leg = 1:2, ncol = 2)
+
+```
+
+
+
+
+```{r}
+#Minimum spanning tree on squared distances between populations in entire space
+myCol <- c("darkblue", "purple", "green", "orange", "red", "blue",
+           "brown","darkgreen","deepskyblue4","cornsilk4") #,"deeppink4","gray30","coral2")
+
+
+scatter(dapc1, ratio.pca = 0.3, bg = "white", pch = 20, cell = 0,
+        cstar = 0, col = myCol, solid = 0.4, cex = 3, clab = 0, mstree = TRUE,
+        scree.da = FALSE, posi.pca = "bottomright", leg = TRUE, 
+        txt.leg = paste("Cluster", 1:10))
+par(xpd = TRUE)
+points(dapc1$grp.coord[, 1], dapc1$grp.coord[, 2], pch = 4, cex = 2,
+       lwd = 8, col = "black")
+points(dapc1$grp.coord[, 1], dapc1$grp.coord[, 2], pch = 4, cex = 2,
+       lwd = 2, col = myCol)
+```
+
+```{r}
+#single discriminant function like when K=2
+scatter(dapc1, 1,1, col = myCol, bg= "white", scree.da = FALSE, legend = TRUE,
+        solid = 0.4)
+
+
+```
+
+#Contribution of alleles
+```{r}
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Assume can be split into two groups
+
+
+```{r}
+grp <- find.clusters(ph1, max.n.clust = 40)
+# Choose the number of PCs to retain (>=1): 200 - to keep all
+#Choose the number of cluster (>=2): 13 - the elbow of the curve
 names(grp)
 
+grp$size
+
 #actual groups
-table(pop(D), grp$grp)
+table(pop(ph1), grp$grp)
+
+table.value(table(pop(ph1), grp$grp), col.lab = 1:13)
 ```
+
+# Are two many clusters are useful to describe the data?
+```{r}
+
+grp2 <- find.clusters(ph1, max.n.clust = 40)
+# Choose the number of PCs to retain (>=1): 200 - to keep all
+#Choose the number of cluster (>=2): 2 - the elbow of the curve (10 might be best)
+names(grp2)
+
+grp2$size
+
+#actual groups
+table(pop(ph1), grp2$grp)
+
+table.value(table(pop(ph1), grp2$grp), col.lab = 1:2)
+
+# #1 transform data using PCA; #2 perform a Discriminant Analysis on retained PCs
+dapc2 <- dapc(ph1, grp2$grp)
+  # 10 - retain as few as possible. STart to gain little more after about 17 PCs
+  # 1 - can retain all eigenvalues for small clusters (less than 10s)
+
+dapc2 # describes way less of the variance - proportion of conserved variance
+
+scatter(dapc2)
+```
+
+
+#Locations of individuals
+```{r}
+
+
+gpsdata <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS data 2016_medl.csv")
+
+head(gpsdata)
+
+length(ph1@pop) #395
+length(gpsdata$Code) #421
+table(ph1@pop)
+table(gpsdata$Code)
+
+#Set level order the same
+levs <- unique(unlist(lapply(ph1@pop, levels)))
+levels(gpsdata$Code) <- levs
+
+
+
+```
+
+
+
+
+
+
 
 retain all PCs when k-means clustering   
 after k groups, do DAPC but don't retain more than 1/3 of the total number of PCs, retain all of the DFs (what's a DF?)   
 optim.a.score() to determine best number of PCs to retain
 
-
-#sequences
-```{r}
-#Fasta to DNAbin
-
-
-#DNAbin to genind
-
-```
