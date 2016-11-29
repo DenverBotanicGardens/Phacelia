@@ -184,7 +184,6 @@ BIO19 = Precipitation of Coldest Quarter
 ```{r}
 install.packages(c('raster', 'rgdal', 'dismo', 'rJava'))
 
-library(dismo)
 #check out example file
 file <- paste(system.file(package="dismo"), "/ex/bradypus.csv", sep="")
 bradypus <- read.table(file, header=TRUE, sep=",")
