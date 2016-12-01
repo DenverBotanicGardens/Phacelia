@@ -8,7 +8,7 @@ output: html_document
 #Load libraries.
 ```{r}
 library(labdsv)
-#library(ellipse)
+library(ellipse)
 library(mvtnorm)
 library(ggplot2)
 ```
@@ -107,6 +107,19 @@ ggplot()+
 ```
 
 ```{r}
+
+plot(phfocc$PC1, phfocc$PC2, cex=2, xlab="PC1", ylab="PC2", cex.lab=1.5, cex.axis=1.5)
+points(phfocc$PC1[phfocc$Population.Code=="TC"], 
+       phfocc$PC2[phfocc$Population.Code=="TC"], cex=1, col="blue")
+points(phfocc$PC1[phfocc$Population.Code=="BR"], 
+       phfocc$PC2[phfocc$Population.Code=="BR"], cex=1, col="goldenrod")
+points(m1[1],m1[2], cex=2, pch=19)
+points(m2[1],m2[2], cex=2, pch=19)
+points(x,y, type="l", col="red", lty=1, lwd=3)
+
+```
+
+```{r}
 ggplot(ridge, aes(alfa, pdf, colour = site))+
   geom_line()
 
@@ -147,21 +160,21 @@ TolEll <- apply(df, 2, function(site){
   })
 
 
+head(as.data.frame(k))
+ggplot(as.data.frame(k), aes(V1,V2))+
+  geom_point()
 ```
 
 ```{r}
-for(i in 1:10){
-  tiff(paste("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_phfo/",i,
-            "betavalues.jpeg",sep=""), width = 84, height = 84, compression = "lzw", 
-       units = "mm", res = 300)
-    paste(ggplot(TolEll[[i]])+
-            geom_point(aes(alfa, beta_vector_SPA), col = "red")+
-            geom_point(aes(alfa, beta_vector_SPB), col = "purple")+
-            ggtitle(unique(TolEll[[i]]$site))+
-            theme_bw())
-    dev.off()
-}
+toleranceell <- do.call(rbind, TolEll)
+```
 
+```{r}
+ggplot(toleranceell, aes(colour = site))+
+  geom_point(aes(alfa, beta_vector_SPA), col = "red")+
+  geom_point(aes(alfa, beta_vector_SPB), col = "purple")+
+  facet_grid(~site)+
+  theme_bw()
 
 ```
 
