@@ -1,0 +1,252 @@
+---
+title: "Zapata_Phacelia"
+author: "Michelle DePrenger-Levin"
+date: "November 29, 2016"
+output: html_document
+---
+
+#Load libraries.
+```{r}
+library(labdsv)
+#library(ellipse)
+library(mvtnorm)
+library(ggplot2)
+```
+
+```{r}
+phfo <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_phfo/Phacelia.formosula.data.2014CSV.csv")
+
+head(phfo)
+phfo <- phfo[,-(18:19)]
+```
+
+R script from Appendix 5 in Zapata F., Jimenez I. Species Delimitation in Systematics: Inferring Gaps in Morphology across Geography.
+```{r}
+# Principal component analysis on correlation matrix
+# Getting rid of Species through Plant Height 
+phfocc <- phfo[complete.cases(phfo),]
+pa <- pca(phfocc[,-(1:9)], cor = TRUE)
+
+# Add PC scores to the data matrix
+phfocc <- cbind(phfocc, as.data.frame(pa$scores))
+
+table(phfocc$Population.Code)
+```
+
+Calculate sample size, mean, and variance-covariance for each group
+```{r}
+dataphfo <- lapply(unique(phfocc$Population.Code), function(site){
+  n_Site <- length(phfocc$PC1[phfocc$Population.Code == site])
+  m1 <- array(c(mean(phfocc$PC1[phfocc$Population.Code == site]),
+                mean(phfocc$PC2[phfocc$Population.Code == site])),
+              dim = c(2,1))
+  Z1 <- var(cbind(phfocc$PC1[phfocc$Population.Code == site], 
+                  phfocc$PC2[phfocc$Population.Code == site]))
+  data.frame(site, Comp = c("PC1","PC2"), n_Site, m1, Z1)
+})
+
+data.phfo <- do.call(rbind, dataphfo)
+```
+
+Ridgeline manifold (i.e., d<-a %*% b) from equation 4 in Ray and Lindsay (2005:2045) is evaluated at various values of alfa and the resulting coordinates (in PC1 and PC2 space) are captured in vectors x and y.  
+Probability density function along the ridgeline manifold (pdf)
+
+```{r}
+
+df <- data.frame(matrix(combn(unique(data.phfo$site),2),2,10))
+# df will have each population combination to compare
+
+ridgemani <- apply(df, 2, function(site){
+  
+# apply over values of alpha  
+  lst1 <- lapply(seq(0,1,0.001), function(alfa){
+    Z1 <- data.phfo[data.phfo$site == as.character(site[1]),c("X1","X2")]
+    Z2 <- data.phfo[data.phfo$site == as.character(site[2]),c("X1","X2")]
+    m1 <- data.phfo[data.phfo$site == as.character(site[1]),"m1"]
+    m2 <- data.phfo[data.phfo$site == as.character(site[2]),"m1"]
+    a <- solve((1-alfa)*solve(Z1) + alfa*solve(Z2))
+    b <- (1-alfa)*solve(Z1)%*%m1 + alfa*solve(Z2)%*%m2
+    d <- a %*% b
+    data.frame(site = paste(site[1], site[2], sep="-"),d[1], d[2])
+    })
+  
+  s2s <- do.call(rbind, lst1)
+  
+                              # matrix of quantiles - each row
+  s2s$pdf <- (1/2*(dmvnorm(cbind(s2s$d.1.,s2s$d.2.),  
+                            #mean
+                            data.phfo[data.phfo$site == as.character(site[1]),"m1"],
+                            #covariance matrix
+                            as.matrix(data.phfo[data.phfo$site == as.character(site[1]),c("X1","X2")])) +
+                    dmvnorm(cbind(s2s$d.1.,s2s$d.2.),
+                            data.phfo[data.phfo$site == as.character(site[2]),"m1"],
+                            as.matrix(data.phfo[data.phfo$site == as.character(site[2]),c("X1","X2")]))))
+  
+  s2s <- data.frame(s2s, alfa = seq(0,1,0.001))
+  })
+
+ridge <- do.call(rbind, ridgemani)
+head(ridge)
+```
+
+
+```{r}
+phfo2 <- reshape(data.phfo, idvar = "site", timevar = "Comp", direction = "wide")
+
+phfo2
+```
+
+
+Plot the first two components, the bivariate means of the two species/sites, and the ridgeline manifolds
+```{r}
+ggplot()+
+  geom_point(data = phfocc, aes(PC1, PC2, colour = Population.Code))+
+  stat_ellipse(data = phfocc, aes(PC1, PC2, colour = Population.Code))+
+  geom_point(data = phfo2, aes(m1.PC1, m1.PC2, colour = site, cex = 3))
+
+```
+
+```{r}
+ggplot(ridge, aes(alfa, pdf, colour = site))+
+  geom_line()
+
+```
+
+
+Tolerance ellipses and corresponding beta values for various points along the ridgeline manifold.  
+```{r}
+TolEll <- apply(df, 2, function(site){
+  p<-2
+  #Change the value of gamma to the desired level of statistical confidence to calculate statistical tolerance regions (see Krishnamoorty and Mathew 1999)
+  gamma<-0.95
+  #Set variables per species
+  n_SPA <- unique(data.phfo$n_Site[data.phfo$site == as.character(site[1])])
+  n_SPB <- unique(data.phfo$n_Site[data.phfo$site == as.character(site[2])])
+  x <- ridge$d.1.[ridge$site == paste(site[1], site[2], sep="-")]
+  y <- ridge$d.2.[ridge$site == paste(site[1], site[2], sep="-")]
+  m1 <- data.phfo$m1[data.phfo$site == as.character(site[1])]
+  m2 <- data.phfo$m1[data.phfo$site == as.character(site[2])]
+  Z1 <- data.phfo[data.phfo$site == as.character(site[1]),c("X1","X2")]
+  Z2 <- data.phfo[data.phfo$site == as.character(site[2]),c("X1","X2")]
+    
+  k <- do.call(rbind,lapply(seq(2,1000,1), function(i){
+    k1 <- (n_SPA-1)%*%t(c(x[i],y[i])-m1)%*%solve((n_SPA-1)*Z1)%*%(c(x[i],y[i])-m1)
+    k2 <- (n_SPB-1)%*%t(c(x[i],y[i])-m2)%*%solve((n_SPB-1)*Z2)%*%(c(x[i],y[i])-m2)
+    cbind(k1,k2)
+  }))
+  
+    #the chi quantiles and beta values are obtained using the approximation in equation 3.15 in Krishnamoorty and Mathew (1999, page 239).
+    chi_quantile<-k[,1]*(1/(n_SPA-1))*(qchisq(1-gamma, n_SPA-p))
+    beta_or_chi_probability_SPA<-pchisq(chi_quantile, p, ncp=p/n_SPA, lower.tail = TRUE, log.p = FALSE)
+    chi_quantile2<-k[,2]*(1/(n_SPB-1))*(qchisq(1-gamma, n_SPB-p))
+    beta_or_chi_probability_SPB<-pchisq(chi_quantile2, p, ncp=p/n_SPB, lower.tail = TRUE, log.p = FALSE)
+    #Gather in vectors the beta values for various points along the ridgeline manifold. 
+    data.frame(site = paste(site[1],site[2],sep="-"), beta_vector_SPA = beta_or_chi_probability_SPA,
+               beta_vector_SPB = beta_or_chi_probability_SPB,
+               alfa = seq(0,1,0.001)[2:1000])
+  })
+
+
+```
+
+```{r}
+for(i in 1:10){
+  tiff(paste("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_phfo/",i,
+            "betavalues.jpeg",sep=""), width = 84, height = 84, compression = "lzw", 
+       units = "mm", res = 300)
+    paste(ggplot(TolEll[[i]])+
+            geom_point(aes(alfa, beta_vector_SPA), col = "red")+
+            geom_point(aes(alfa, beta_vector_SPB), col = "purple")+
+            ggtitle(unique(TolEll[[i]]$site))+
+            theme_bw())
+    dev.off()
+}
+
+
+```
+
+
+```{r}
+quantsa.b <- lapply(unique(phfocc$Population.Code), function(pop){
+  phfo.pop <- phfocc[phfocc$Population.Code == pop,]
+  quant <- lapply(8:25, function(variable){
+    Qlow <- quantile(phfo.pop[,variable], 0.95)
+    Qhigh <- quantile(phfo.pop[,variable], 0.05)
+    data.frame(site = pop, 
+               Variable = names(phfo.pop)[variable],
+               Qlow, Qhigh)
+    })
+  do.call(rbind,quant)
+  })
+
+quant <- do.call(rbind, quantsa.b)
+
+
+```
+
+```{r}
+ggplot()+
+  geom_density(data = phfocc, aes(Plant.Height, fill = Population.Code),
+               alpha = 0.25)+
+  geom_vline(data = quant[quant$Variable == "Plant.Height",], 
+             aes(xintercept = Qlow, colour = site), linetype = "dashed")+
+  geom_vline(data = quant[quant$Variable == "Plant.Height",], 
+             aes(xintercept = Qhigh, colour = site))
+
+    
+```
+
+```{r}
+ggplot()+
+  geom_density(data = phfocc, aes(Width, fill = Population.Code),
+               alpha = 0.25)+
+  geom_vline(data = quant[quant$Variable == "Width",], 
+             aes(xintercept = Qlow, colour = site), linetype = "dashed")+
+  geom_vline(data = quant[quant$Variable == "Width",], 
+             aes(xintercept = Qhigh, colour = site))
+
+    
+```
+
+
+```{r}
+ggplot()+
+  geom_density(data = phfocc, aes(Pinnae.Pairs, fill = Population.Code),
+               alpha = 0.25)+
+  geom_vline(data = quant[quant$Variable == "Pinnae.Pairs",], 
+             aes(xintercept = Qlow, colour = site), linetype = "dashed")+
+  geom_vline(data = quant[quant$Variable == "Pinnae.Pairs",], 
+             aes(xintercept = Qhigh, colour = site))
+
+    
+```
+
+```{r}
+ggplot(phfocc, aes(Pinnae.Pairs, fill = Species))+
+  geom_density(alpha = 0.5)
+
+```
+
+```{r}
+ggplot(phfocc, aes(PC1, fill = Species))+
+  geom_density(alpha = 0.5)
+
+```
+
+```{r}
+ggplot()+
+  geom_density(data = phfocc, aes(PC1, fill = Population.Code),
+               alpha = 0.25)+
+  geom_vline(data = quant[quant$Variable == "PC1",], 
+             aes(xintercept = Qlow, colour = site), linetype = "dashed")+
+  geom_vline(data = quant[quant$Variable == "PC1",], 
+             aes(xintercept = Qhigh, colour = site))
+
+    
+```
+
+
+
+Grahic et al 2013 Morphological evalutation of common bean diversity in Bosnia and Herzegovina using he discriminant analysis of principal compenents (DAPC) multivariate method 
+
+
