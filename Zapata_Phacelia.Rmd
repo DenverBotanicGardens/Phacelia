@@ -300,39 +300,28 @@ col_SPC<-c("purple")
 col_pops <- c("midnightblue","mediumvioletred","lightskyblue4","mediumseagreen","orangered")
 ```
 
-# 1
-### Compare pop 3 to pop 4
-pops[1] = Gina Glenea
-pops[2] = BR: formosula
-pops[3] = RN: fomosula
-pops[4] = FC: scullyi
-pops[5] = AS: formosula
+function to compare and visualize two populations
 ```{r}
-rm(n_SPA,m1,Z1,n_SPB,m2,Z2)
-
-n_SPA<-length(data$PC1[data$Population.Code==pops[3]])
-m1 <- array(c(mean(data$PC1[data$Population.Code==pops[3]]),
-              mean(data$PC2[data$Population.Code==pops[3]])),dim=c(2,1))
-Z1<-var(cbind(data$PC1[data$Population.Code==pops[3]], data$PC2[data$Population.Code==pops[3]]))
+ridgeline.manifold <- function(pop1, pop2){
+  n_SPA<-length(data$PC1[data$Population.Code==pops[pop1]])
+m1 <- array(c(mean(data$PC1[data$Population.Code==pops[pop1]]),
+              mean(data$PC2[data$Population.Code==pops[pop1]])),dim=c(2,1))
+Z1<-var(cbind(data$PC1[data$Population.Code==pops[pop1]], data$PC2[data$Population.Code==pops[pop1]]))
 
 
 #Calculate sample size, mean and variance-covariance matrix for SPB.
 n_SPB<-length(data$PC1[data$Population.Code==pops[4]])
-m2 <- array(c(mean(data$PC1[data$Population.Code==pops[4]]),
-              mean(data$PC2[data$Population.Code==pops[4]])), dim=c(2,1))
-Z2<-var(cbind(data$PC1[data$Population.Code==pops[4]], data$PC2[data$Population.Code==pops[4]]))
+m2 <- array(c(mean(data$PC1[data$Population.Code==pops[pop2]]),
+              mean(data$PC2[data$Population.Code==pops[pop2]])), dim=c(2,1))
+Z2<-var(cbind(data$PC1[data$Population.Code==pops[pop2]], data$PC2[data$Population.Code==pops[pop2]]))
 
-```
-
-#Population RN:formosula; FC:scullyi
-```{r}
 #Calculate ridgeline manifold. The equation for the manifold (i.e., d<-a %*% b) 
-#	from equation 4 in Ray and Lindsay (2005:2045) is evaluated at various values 
-#	of alfa and the resulting coordinates (in PC1 and PC2 space) are captured in 
-#	vectors x and y.
+#   from equation 4 in Ray and Lindsay (2005:2045) is evaluated at various values 
+#   of alfa and the resulting coordinates (in PC1 and PC2 space) are captured in 
+#   vectors x and y.
 x<-c()
 y<-c()
-alfa<-seq(0,1,0.001)		# 142 rows in phfo after removing NA indiviudals
+alfa<-seq(0,1,0.001)        # 142 rows in phfo after removing NA indiviudals
 for (i in 1:length(alfa)){
   a<-solve((1-alfa[i])*solve(Z1)  +  alfa[i]*solve(Z2))
   b<-(1-alfa[i])*solve(Z1)%*%m1  +  alfa[i]*solve(Z2)%*%m2
@@ -341,40 +330,118 @@ for (i in 1:length(alfa)){
   y<-append(y, d[2], after=length(y))
 }
 
+data1<-data[data$Population.Code %in% paste(pops[c(pop1,pop2)],sep=","),]
+
+
+plot1 <- ggplot() +
+  geom_point(data = data1, aes(PC1, PC2, colour = Population.Code)) +
+  stat_ellipse(data = data1, aes(PC1, PC2, colour = Population.Code)) +
+  geom_line(data = data.frame(x,y), aes(x,y), cex = 1.5) +
+  theme_bw()
+
+#beta values along ridgeline manifold  
+  beta_vector_SPA<-c()
+  beta_vector_SPB<-c()
+  
+  for (i in seq(2, 1000, 1)){
+#calculation of ellipses and beta for SPA. The line below is equation 2.2 in Krishnamoorty and Mathew (1999, page 236).
+    k<- (n_SPA-1)%*%t(c(x[i],y[i])-m1)%*%solve((n_SPA-1)*Z1)%*%(c(x[i],y[i])-m1)
+    p<-2
+    #Change the value of gamma to the desired level of statistical confidence to calculate statistical tolerance regions (see Krishnamoorty and Mathew 1999)
+gamma<-0.95
+#the chi quantiles and beta values are obtained using the approximation in equation 3.15 in Krishnamoorty and Mathew (1999, page 239).
+chi_quantile<-k*(1/(n_SPA-1))*(qchisq(1-gamma, n_SPA-p))
+beta_or_chi_probability_SPA<-pchisq(chi_quantile, p, ncp=p/n_SPA, lower.tail = TRUE, log.p = FALSE)
+
+#calculation of ellipses and beta for SPB. The line below is equation 2.2 in Krishnamoorty and Mathew (1999, page 236).
+k<- (n_SPB-1)%*%t(c(x[i],y[i])-m2)%*%solve((n_SPB-1)*Z2)%*%(c(x[i],y[i])-m2)
+k
+p<-2
+#Change the value of gamma to the desired level of statistical confidence to calculate statistical tolerance regions (see Krishnamoorty and Mathew 1999)
+gamma<-0.95
+#the chi quantiles and beta values are obtained using the approximation in equation 3.15 in Krishnamoorty and Mathew (1999, page 239).
+chi_quantile<-k*(1/(n_SPB-1))*(qchisq(1-gamma, n_SPB-p))
+beta_or_chi_probability_SPB<-pchisq(chi_quantile, p, ncp=p/n_SPB, lower.tail = TRUE, log.p = FALSE)
+#Gather in vectors the beta values for various points along the ridgeline manifold. 
+beta_vector_SPA<-append(beta_vector_SPA, beta_or_chi_probability_SPA, after=length(beta_vector_SPA))
+beta_vector_SPB<-append(beta_vector_SPB, beta_or_chi_probability_SPB, after=length(beta_vector_SPB))
+}
+
+
+# probability density function (pdf) along the ridgeline manifold
+  x<-c()
+  y<-c()
+  alfa<-seq(0,1,0.001)		# 142 rows in phfo after removing NA indiviudals
+  for (i in 1:length(alfa)){
+    a<-solve((1-alfa[i])*solve(Z1)  +  alfa[i]*solve(Z2))
+    b<-(1-alfa[i])*solve(Z1)%*%m1  +  alfa[i]*solve(Z2)%*%m2
+    d<-a %*% b
+    x<-append(x, d[1], after=length(x))
+    y<-append(y, d[2], after=length(y))
+    }
+    
+    par(mar=c(5,5,2,2))
+  plot3 <- plot(alfa, (1/2*( dmvnorm(cbind(x,y) , m1, Z1) + dmvnorm(cbind(x,y) , m2, Z2) )), 
+                type="l", ylab="Probability density", xlab=expression(~alpha), cex.lab=1.5,
+                cex.axis=1.5, lwd=2)
+  
+  #Plot the value of beta at various points along the ridgeline manifold,
+  #and an horizontal dashed line at beta=0.9 (=a possible a priori cutoff value of 0.1); change according to cutoff value defined a priori (see Wiens and Servedio 2000).
+  plot2 <- recordPlot()
+
+  plot(alfa[2:1000], beta_vector_SPA, type="l", col="black", ylim=c(0,1), lwd=2,
+       xlab=expression(~alpha),
+       ylab=expression(paste("Proportion ",beta, " within tolerance region")),
+       cex.axis=1, cex.lab=1)
+  points(alfa[2:1000], beta_vector_SPB, type="l", col="black", lty=1, lwd=2)
+  points(alfa[1], beta_vector_SPA[1],cex=3, pch=22)
+  points(alfa[1], beta_vector_SPB[1],cex=3, pch=24)
+  points(alfa[999], beta_vector_SPA[999],cex=3, pch=22)
+  points(alfa[999], beta_vector_SPB[999],cex=3, pch=24)
+  abline(h=0.85, lty=3)   # abline(h=0.9, lty=3)
+
+  list(plot1, plot2, plot3)
+}
+
 ```
 
+not working!! yargggg
 
-#Plot PC1 and PC2, the bivariate means of the two species to be compared and the 
-#	respective ridgeline manifold.
+apply(df, 2, function(site){
+tiff(paste("Q:/Research/Lab/Projects/Phacelia formosula/R code/R images/RidgelineManifold",
+           site[1],"to",site[2],".tiff",sep=""),
+width = 174, height = 150, compression="lzw", units = "mm", res=300)
+  ridgeline.manifold(site[1],site[2])
+  dev.off()
+})
 ```{r}
-par(mar=c(5,5,2,2))
-data1<-data[data$Population.Code %in% paste(pops[3:4],sep=","),]
-plot(data1$PC1, data1$PC2, pch = 21, xlab="PC1", ylab="PC2", cex.lab=1, cex.axis=1.5)
-points(data$PC1[data$Population.Code==pops[3]], 
-       data$PC2[data$Population.Code==pops[3]], col=col_pops[3])
-points(data$PC1[data$Population.Code==pops[4]], 
-       data$PC2[data$Population.Code==pops[4]], col=col_pops[4])
-points(m1[1],m1[2], cex=2, pch=19)
-points(m2[1],m2[2], cex=2, pch=19)
-points(x,y, type="l", col="red", lty=1, lwd=3)
+
+ridgeline.manifold(1,2)[[3]]
+ridgeline.manifold(1,3)[[3]]
+ridgeline.manifold(1,4)[[3]]
+ridgeline.manifold(1,5)[[3]]
+ridgeline.manifold(2,3)[[3]]
+ridgeline.manifold(2,4)[[3]]
+ridgeline.manifold(2,5)[[3]]
+ridgeline.manifold(3,4)[[3]]
+ridgeline.manifold(3,5)[[3]]
+ridgeline.manifold(4,5)[[3]]
+
+
+par(mfrow=c(2,1))
+print(ridgeline.manifold(1,2))
 
 ```
 
-function to compare and visualize two populations
-```{r}
 
 
-```
-
-#Population 1 to 2
-```{r}
-ggplot() +
-	geom_point(data = data1, aes(PC1, PC2, colour = Population.Code)) +
-	stat_ellipse(data = data1, aes(PC1, PC2, colour = Population.Code)) +
-	geom_line(data = data.frame(x,y), aes(x,y), cex = 1.5) +
-	theme_bw()
-```
-
+# 1
+### Compare pop 3 to pop 4
+pops[1] = Gina Glenea
+pops[2] = BR: formosula
+pops[3] = RN: fomosula
+pops[4] = FC: scullyi
+pops[5] = AS: formosula
 
 #Plot the probability density function (pdf) along the ridgeline manifold 
 #	(see Fig. 2a in Ray and Lindsay (2005)).
