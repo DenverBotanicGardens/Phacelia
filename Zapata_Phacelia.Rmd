@@ -559,23 +559,64 @@ RDA <- function(pop1, pop2){
   pos_eivec<-seq(1:length(ei_sim$values))[ei_sim$values>0]
   n_pos_eivec<-length(ei_sim$values[ei_sim$values>0])
   #Define dummy variables and their interactions.
-  dum<-as.numeric(SP[SP==SPA | SP==SPB]==SPA)
+  dum <- as.numeric(data$Population.Code[data$Population.Code==pops[pop1] | 
+                       data$Population.Code==pops[pop2]]==pops[pop1])
   interactions<-as.matrix(ei_sim$vectors[,1:n_pos_eivec]*dum)
-#Define the formula for RDA.
-a<-c(paste("ei_sim$vectors[,", pos_eivec, "]", sep=""), "dum", paste("interactions[,", c(1:n_pos_eivec), "]", sep=""))
-#If there is no significant linear trend in first RDA, then run next script line to use original PCA axes as response variables.
-formula1<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", paste(a, collapse= "+")))
-#If there was a significant linear trend in  first RDA, then run the next script line to use residuals as response variables.
-formula1<-as.formula(paste("det_residuals ~ ", paste(a, collapse= "+")))
-#Run and plot RDA, and test significance of different terms by permutation.
-rda_model1<-rda(formula1)
-plot(rda_model1)
-anova(rda_model1, alpha=0.05, beta=0.01, step=100, perm.max=9999, by = "terms")
+  #Define the formula for RDA.
+  a<-c(paste("ei_sim$vectors[,", pos_eivec, "]", sep=""), "dum",
+       paste("interactions[,", c(1:n_pos_eivec), "]", sep=""))
+  
+  #If there is no significant linear trend in first RDA, then run next script line to use original PCA axes as response variables.
+  formula1<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", 
+                             paste(a, collapse= "+")))
+  
+  #If there was a significant linear trend in  first RDA, then run the next script line to use residuals as response variables.
+  formula1<-as.formula(paste("det_residuals ~ ", paste(a, collapse= "+")))
+  
+  #Run and plot RDA, and test significance of different terms by permutation.
+  rda_model1<-rda(formula1)
+  plot(rda_model1)
+  rda1 <- anova(rda_model1, alpha=0.05, beta=0.01, step=100, perm.max=9999, by = "terms")
+  
+  #The lines below apply standard model simplification procedures (Crawley 2002).
+  rda_model2<-update(rda_model1, ~.-interactions[, 1])
+  anova(rda_model2, alpha=0.05, beta=0.01, step=100, perm.max=9999, by = "terms")
+  
+  #The lines below can be used to obtain adjusted redundancy statistic (Peres-Neto et al. 2006)
+  d<-c(paste("ei_sim$vectors[,", pos_eivec, "]", sep=""))
+  e<-c("dum", paste("interactions[,", c(1:n_pos_eivec), "]", sep=""))
+  
+  #If there is no significant linear trend in first RDA, then run next script line to use original PCA axes as response variables.
+
+  if(rda1$`Pr(>F)`[3] >= 0.05){
+    formula2<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", 
+                               paste(d, collapse= "+")))
+    formula3<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", 
+                               paste(e, collapse= "+")))
+  }
+    
+    #If there was a significant linear trend in  first RDA, then run the next script line to use residuals as response variables.
+  
+  if(rda1$`Pr(>F)`[3] < 0.05){
+    formula2<-as.formula(paste("det_residuals ~ ", paste(d, collapse= "+")))
+    formula3<-as.formula(paste("det_residuals ~ ", paste(e, collapse= "+")))
+  }
+    
+    #Update formula 2 or 3 according to simplification of rda_model
+  formula3a<-update(formula3, ~.-interactions[,1])
+  formula3a
+
+  #calculate adjusted R-squared.
+  variance_explained<-varpart(det_residuals, formula2, formula3)
+  variance_explained
+
+  
   
   list(Sites = cbind(pops[pop1],pops[pop2]),
        RDAPlot = rda_det_model, 
        anova = anovaresult, 
-       residuals = ifanova)
+       residuals = ifanova,
+       var_ex = variance_explained)
 }
 
 
