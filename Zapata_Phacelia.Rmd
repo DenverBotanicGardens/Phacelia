@@ -11,6 +11,8 @@ library(labdsv)
 library(ellipse)
 library(mvtnorm)
 library(ggplot2)
+library(vegan)
+library(spdep)
 ```
 
 ```{r}
@@ -335,7 +337,14 @@ data1<-data[data$Population.Code %in% paste(pops[c(pop1,pop2)],sep=","),]
 
 plot1 <- ggplot() +
   geom_point(data = data1, aes(PC1, PC2, colour = Population.Code)) +
-  stat_ellipse(data = data1, aes(PC1, PC2, colour = Population.Code)) +
+  stat_ellipse(data = data1, aes(PC1, PC2, colour = Population.Code), 
+               type = "norm") +
+  stat_ellipse(data = data1, aes(PC1, PC2, colour = Population.Code), 
+               level = 0.85, type = "norm") +
+  stat_ellipse(data = data1, aes(PC1, PC2, colour = Population.Code), 
+               level = 0.75, type = "norm") +
+  stat_ellipse(data = data1, aes(PC1, PC2, colour = Population.Code), 
+               level = 0.65, type = "norm") +
   geom_line(data = data.frame(x,y), aes(x,y), cex = 1.5) +
   theme_bw()
 
@@ -382,8 +391,8 @@ beta_vector_SPB<-append(beta_vector_SPB, beta_or_chi_probability_SPB, after=leng
     
     par(mar=c(5,5,2,2))
   plot3 <- plot(alfa, (1/2*( dmvnorm(cbind(x,y) , m1, Z1) + dmvnorm(cbind(x,y) , m2, Z2) )), 
-                type="l", ylab="Probability density", xlab=expression(~alpha), cex.lab=1.5,
-                cex.axis=1.5, lwd=2)
+                type="l", ylab="Probability density", xlab=expression(~alpha), cex.lab=0.75,
+                cex.axis=1, lwd=2)
   
   #Plot the value of beta at various points along the ridgeline manifold,
   #and an horizontal dashed line at beta=0.9 (=a possible a priori cutoff value of 0.1); change according to cutoff value defined a priori (see Wiens and Servedio 2000).
@@ -395,7 +404,9 @@ beta_vector_SPB<-append(beta_vector_SPB, beta_or_chi_probability_SPB, after=leng
        cex.axis=1, cex.lab=1)
   points(alfa[2:1000], beta_vector_SPB, type="l", col="black", lty=1, lwd=2)
   points(alfa[1], beta_vector_SPA[1],cex=3, pch=22)
+  text(alfa[1], beta_vector_SPA[1], pops[pop1])
   points(alfa[1], beta_vector_SPB[1],cex=3, pch=24)
+  text(alfa[1], beta_vector_SPB[1], pops[pop2])
   points(alfa[999], beta_vector_SPA[999],cex=3, pch=22)
   points(alfa[999], beta_vector_SPB[999],cex=3, pch=24)
   abline(h=0.85, lty=3)   # abline(h=0.9, lty=3)
@@ -406,6 +417,8 @@ beta_vector_SPB<-append(beta_vector_SPB, beta_or_chi_probability_SPB, after=leng
 ```
 
 not working!! yargggg
+
+maybe a do.call(tiff(...))
 
 apply(df, 2, function(site){
 tiff(paste("Q:/Research/Lab/Projects/Phacelia formosula/R code/R images/RidgelineManifold",
@@ -429,223 +442,155 @@ ridgeline.manifold(4,5)[[3]]
 
 
 par(mfrow=c(2,1))
-print(ridgeline.manifold(1,2))
+ridgeline.manifold(1,2)[[1:2]]
+ridgeline.manifold(1,3) 
+ridgeline.manifold(1,4) 
+ridgeline.manifold(1,5) 
+ridgeline.manifold(2,3) 
+ridgeline.manifold(2,4) 
+ridgeline.manifold(2,5) 
+ridgeline.manifold(3,4) 
+ridgeline.manifold(3,5) 
+ridgeline.manifold(4,5)
 
 ```
 
-
-
-# 1
-### Compare pop 3 to pop 4
-pops[1] = Gina Glenea
-pops[2] = BR: formosula
-pops[3] = RN: fomosula
-pops[4] = FC: scullyi
-pops[5] = AS: formosula
-
-#Plot the probability density function (pdf) along the ridgeline manifold 
-#	(see Fig. 2a in Ray and Lindsay (2005)).
-# revert to 1001 alfa points
+Geographic PCA   
+1) look for statisctically signficant spatial linear trend and then   
+2a) response variables are then the multivariate residuals around the linear trend    if not    
+2b) response are original multivariate morphological measurements    
+3) RDA - spatial eigenvectors are independent variables for hypothesis of geographic variation within a species - statistically signficant coefficient for the independent variables is support for two species hypothesis. 
 ```{r}
-x<-c()
-y<-c()
-alfa<-seq(0,1,0.001)		# 142 rows in phfo after removing NA indiviudals
-for (i in 1:length(alfa)){
-a<-solve((1-alfa[i])*solve(Z1)  +  alfa[i]*solve(Z2))
-b<-(1-alfa[i])*solve(Z1)%*%m1  +  alfa[i]*solve(Z2)%*%m2
-d<-a %*% b
-x<-append(x, d[1], after=length(x))
-y<-append(y, d[2], after=length(y))
+head(phfocc)
+
+summary(pa)
+
+```
+
+Check for zero distance between points
+```{r}
+
+plot(phfocc$long,phfocc$lat,  cex=1.5)
+n_coor<-nrow(phfocc)
+factorial(n_coor)/(2*factorial(n_coor-2))
+d<-as.matrix(dist(phfocc[,c("long","lat")]))
+length(d[upper.tri(d)])
+inspect_coor<-which(d==0, arr.ind=T)
+nrow(inspect_coor)
+(nrow(inspect_coor)-n_coor)/2 #25
+
+inspect_coor
+
+# move the points just a bit to get unique points per collection
+sortphfo <- phfocc[ order(phfocc$long, phfocc$lat),]
+sames <- rle(phfocc$long)
+needtochange <- sames$values[sames$lengths > 1]
+
+data.frame(from = phfocc$long[paste(needtochange, sep="|") %in% phfocc$long],
+           to = jitter(phfocc$long[paste(needtochange, sep="|") %in% phfocc$long], 
+                       amount = 0.00009))
+
+phfocc$long[paste(needtochange, sep="|") %in% phfocc$long] <- jitter(phfocc$long[paste(needtochange, sep="|") %in% phfocc$long], 
+                       amount = 0.00009)
+
+
+data <- phfocc
+```
+
+```{r}
+
+RDA <- function(pop1, pop2){
+  #Run first RDA to detrend original response variables (PC1, PC2) using geographic coordinates as explanatory variables.
+  #Define response variables.
+  data_PC1<-data$PC1[data$Population.Code==pops[pop1] | 
+                       data$Population.Code==pops[pop2]]
+  data_PC2<-data$PC2[data$Population.Code==pops[pop1] | 
+                       data$Population.Code==pops[pop2]]
+  #Define explanatory variables.
+  X<-data$long[data$Population.Code==pops[pop1] | 
+                       data$Population.Code==pops[pop2]]
+  Y<-data$lat[data$Population.Code==pops[pop1] | 
+                       data$Population.Code==pops[pop2]]
+  coor <- cbind(X,Y)
+  n_coor<-nrow(phfocc[data$Population.Code==pops[pop1] | 
+                       data$Population.Code==pops[pop2],])
+  
+  d <- as.matrix(dist(phfocc[data$Population.Code==pops[pop1] | 
+                       data$Population.Code==pops[pop2],
+                       c("long","lat")]))
+  
+  #Define the formula for RDA.
+  b<-c("X","Y")
+  formula_det<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", 
+                                paste(b, collapse= "+")))
+  #Run and plot RDA and test significance by permutation.
+  rda_det_model<-rda(formula_det)
+  plot(rda_det_model)
+  anovaresult <- anova(rda_det_model, alpha=0.05, 
+                       beta=0.01, step=100, perm.max=9999) #significant!
+  
+  #If (and only if) there is a siginificant linear trend, run the next script line
+  #to extract residuals.
+  ifanova <- if(anovaresult$`Pr(>F)`[1] < 0.05) {
+    det_residuals<-residuals(rda_det_model)
+    det_residuals
+  }
+  
+  mst <- spantree(d)
+  plot(coor)
+  lines(mst, data.frame(X,Y))
+  ws<-(d<=max(mst$dist))*(1-((d/(4*(max(mst$dist))))^2))
+  w<-(d>0)*ws
+  Id<-diag(n_coor)
+  ones<-rep(1, n_coor)
+  dim(ones)<-c(n_coor, 1)
+  l<-ones%*%t(ones)
+  l_n<-l/n_coor
+  res1<-Id-l_n
+  res2<-res1%*%w
+  res3<-res2%*%res1
+  ei_sim<-eigen(res3)
+  
+  #Run second RDA using eigenvectors associated with positive eigenvalues,
+  #dummy variables for each species, and their interactions as explanatory variables.
+  #Use either original variables or multivariate residuals as response variables, depending
+  #on wether the first RDA yielded a siginificant linear trend.
+  #List and enumerate eigenvectors associated with positive eigenvalues.
+  pos_eivec<-seq(1:length(ei_sim$values))[ei_sim$values>0]
+  n_pos_eivec<-length(ei_sim$values[ei_sim$values>0])
+  #Define dummy variables and their interactions.
+  dum<-as.numeric(SP[SP==SPA | SP==SPB]==SPA)
+  interactions<-as.matrix(ei_sim$vectors[,1:n_pos_eivec]*dum)
+#Define the formula for RDA.
+a<-c(paste("ei_sim$vectors[,", pos_eivec, "]", sep=""), "dum", paste("interactions[,", c(1:n_pos_eivec), "]", sep=""))
+#If there is no significant linear trend in first RDA, then run next script line to use original PCA axes as response variables.
+formula1<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", paste(a, collapse= "+")))
+#If there was a significant linear trend in  first RDA, then run the next script line to use residuals as response variables.
+formula1<-as.formula(paste("det_residuals ~ ", paste(a, collapse= "+")))
+#Run and plot RDA, and test significance of different terms by permutation.
+rda_model1<-rda(formula1)
+plot(rda_model1)
+anova(rda_model1, alpha=0.05, beta=0.01, step=100, perm.max=9999, by = "terms")
+  
+  list(Sites = cbind(pops[pop1],pops[pop2]),
+       RDAPlot = rda_det_model, 
+       anova = anovaresult, 
+       residuals = ifanova)
 }
 
 
-
-plot(alfa, (1/2*( dmvnorm(cbind(x,y) , m1, Z1) + dmvnorm(cbind(x,y) , m2, Z2) )), 
-	type="l", ylab="Probability density", xlab=expression(~alpha), cex.lab=1.5, 
-	cex.axis=1.5, lwd=2)
 ```
 
-#Calculate tolerance ellipses and corresponding beta values for various points along the ridgeline manifold. Note that all the lines of the loop should be run at once.
 ```{r}
-beta_vector_SPA<-c()
-beta_vector_SPB<-c()
-for (i in seq(2, 1000, 1)){
-#calculation of ellipses and beta for SPA. The line below is equation 2.2 in Krishnamoorty and Mathew (1999, page 236).
-k<- (n_SPA-1)%*%t(c(x[i],y[i])-m1)%*%solve((n_SPA-1)*Z1)%*%(c(x[i],y[i])-m1)
-p<-2
-#Change the value of gamma to the desired level of statistical confidence to calculate statistical tolerance regions (see Krishnamoorty and Mathew 1999)
-gamma<-0.95
-#the chi quantiles and beta values are obtained using the approximation in equation 3.15 in Krishnamoorty and Mathew (1999, page 239).
-chi_quantile<-k*(1/(n_SPA-1))*(qchisq(1-gamma, n_SPA-p))
-beta_or_chi_probability_SPA<-pchisq(chi_quantile, p, ncp=p/n_SPA, lower.tail = TRUE, log.p = FALSE)
+numdf <- combn(1:5,2)
 
-#calculation of ellipses and beta for SPB. The line below is equation 2.2 in Krishnamoorty and Mathew (1999, page 236).
-k<- (n_SPB-1)%*%t(c(x[i],y[i])-m2)%*%solve((n_SPB-1)*Z2)%*%(c(x[i],y[i])-m2)
-k
-p<-2
-#Change the value of gamma to the desired level of statistical confidence to calculate statistical tolerance regions (see Krishnamoorty and Mathew 1999)
-gamma<-0.95
-#the chi quantiles and beta values are obtained using the approximation in equation 3.15 in Krishnamoorty and Mathew (1999, page 239).
-chi_quantile<-k*(1/(n_SPB-1))*(qchisq(1-gamma, n_SPB-p))
-beta_or_chi_probability_SPB<-pchisq(chi_quantile, p, ncp=p/n_SPB, lower.tail = TRUE, log.p = FALSE)
-#Gather in vectors the beta values for various points along the ridgeline manifold. 
-beta_vector_SPA<-append(beta_vector_SPA, beta_or_chi_probability_SPA, after=length(beta_vector_SPA))
-beta_vector_SPB<-append(beta_vector_SPB, beta_or_chi_probability_SPB, after=length(beta_vector_SPB))
-}
+rdas <- apply(numdf, 2, function(site){
+  RDA(site[1],site[2])
+})
 
-
-#Plot the value of beta at various points along the ridgeline manifold,
-#and an horizontal dashed line at beta=0.9 (=a possible a priori cutoff value of 0.1); change according to cutoff value defined a priori (see Wiens and Servedio 2000).
-par(mar=c(5,5,2,2))
-plot(alfa[2:1000], beta_vector_SPA, type="l", col="black", ylim=c(0,1), lwd=2, xlab=expression(~alpha), ylab=expression(paste("Proportion ",beta, " within tolerance region")), cex.axis=1.5, cex.lab=1.5)
-points(alfa[2:1000], beta_vector_SPB, type="l", col="black", lty=1, lwd=2)
-points(alfa[1], beta_vector_SPA[1],cex=3, pch=22)
-points(alfa[1], beta_vector_SPB[1],cex=3, pch=24)
-points(alfa[999], beta_vector_SPA[999],cex=3, pch=22)
-points(alfa[999], beta_vector_SPB[999],cex=3, pch=24)
-abline(h=0.85, lty=3)	# abline(h=0.9, lty=3)
+plot(rdas[[1]][[2]])
 
 ```
-
-
-
-# 2
-### Compare pop 3 to pop 4
-pops[1] = Gina Glenea
-pops[2] = BR: formosula
-pops[3] = RN: fomosula
-pops[4] = FC: scullyi
-pops[5] = AS: formosula
-```{r}
-rm(n_SPA,m1,Z1,n_SPB,m2,Z2)
-
-n_SPA<-length(data$PC1[data$Population.Code==pops[5]])
-m1 <- array(c(mean(data$PC1[data$Population.Code==pops[5]]),
-              mean(data$PC2[data$Population.Code==pops[5]])),dim=c(2,1))
-Z1<-var(cbind(data$PC1[data$Population.Code==pops[5]], data$PC2[data$Population.Code==pops[5]]))
-
-
-#Calculate sample size, mean and variance-covariance matrix for SPB.
-n_SPB<-length(data$PC1[data$Population.Code==pops[4]])
-m2 <- array(c(mean(data$PC1[data$Population.Code==pops[4]]),
-              mean(data$PC2[data$Population.Code==pops[4]])), dim=c(2,1))
-Z2<-var(cbind(data$PC1[data$Population.Code==pops[4]], data$PC2[data$Population.Code==pops[4]]))
-
-```
-
-#Population RN:formosula; FC:scullyi
-```{r}
-#Calculate ridgeline manifold. The equation for the manifold (i.e., d<-a %*% b) 
-#	from equation 4 in Ray and Lindsay (2005:2045) is evaluated at various values 
-#	of alfa and the resulting coordinates (in PC1 and PC2 space) are captured in 
-#	vectors x and y.
-x<-c()
-y<-c()
-alfa<-seq(0,1,0.001)		# 142 rows in phfo after removing NA indiviudals
-for (i in 1:length(alfa)){
-  a<-solve((1-alfa[i])*solve(Z1)  +  alfa[i]*solve(Z2))
-  b<-(1-alfa[i])*solve(Z1)%*%m1  +  alfa[i]*solve(Z2)%*%m2
-  d<-a %*% b
-  x<-append(x, d[1], after=length(x))
-  y<-append(y, d[2], after=length(y))
-}
-
-```
-
-
-#Plot PC1 and PC2, the bivariate means of the two species to be compared and the 
-#	respective ridgeline manifold.
-```{r}
-par(mar=c(5,5,2,2))
-data1<-data[data$Population.Code %in% paste(pops[4:5],sep=","),]
-plot(data1$PC1, data1$PC2, pch = 21, xlab="PC1", ylab="PC2", cex.lab=1, cex.axis=1.5)
-points(data$PC1[data$Population.Code==pops[5]], 
-       data$PC2[data$Population.Code==pops[5]], col=col_pops[5])
-points(data$PC1[data$Population.Code==pops[4]], 
-       data$PC2[data$Population.Code==pops[4]], col=col_pops[4])
-points(m1[1],m1[2], cex=2, pch=19)
-points(m2[1],m2[2], cex=2, pch=19)
-points(x,y, type="l", col="red", lty=1, lwd=3)
-
-```
-
-
-#Population 1 to 2
-```{r}
-ggplot() +
-	geom_point(data = data1, aes(PC1, PC2, colour = Population.Code)) +
-	stat_ellipse(data = data1, aes(PC1, PC2, colour = Population.Code)) +
-	geom_line(data = data.frame(x,y), aes(x,y), cex = 1.5) +
-	theme_bw()
-```
-
-
-#Plot the probability density function (pdf) along the ridgeline manifold 
-#	(see Fig. 2a in Ray and Lindsay (2005)).
-# revert to 1001 alfa points
-```{r}
-x<-c()
-y<-c()
-alfa<-seq(0,1,0.001)		# 142 rows in phfo after removing NA indiviudals
-for (i in 1:length(alfa)){
-a<-solve((1-alfa[i])*solve(Z1)  +  alfa[i]*solve(Z2))
-b<-(1-alfa[i])*solve(Z1)%*%m1  +  alfa[i]*solve(Z2)%*%m2
-d<-a %*% b
-x<-append(x, d[1], after=length(x))
-y<-append(y, d[2], after=length(y))
-}
-
-
-
-plot(alfa, (1/2*( dmvnorm(cbind(x,y) , m1, Z1) + dmvnorm(cbind(x,y) , m2, Z2) )), 
-	type="l", ylab="Probability density", xlab=expression(~alpha), cex.lab=1.5, 
-	cex.axis=1.5, lwd=2)
-```
-
-#Calculate tolerance ellipses and corresponding beta values for various points along the ridgeline manifold. Note that all the lines of the loop should be run at once.
-```{r}
-beta_vector_SPA<-c()
-beta_vector_SPB<-c()
-for (i in seq(2, 1000, 1)){
-#calculation of ellipses and beta for SPA. The line below is equation 2.2 in Krishnamoorty and Mathew (1999, page 236).
-k<- (n_SPA-1)%*%t(c(x[i],y[i])-m1)%*%solve((n_SPA-1)*Z1)%*%(c(x[i],y[i])-m1)
-p<-2
-#Change the value of gamma to the desired level of statistical confidence to calculate statistical tolerance regions (see Krishnamoorty and Mathew 1999)
-gamma<-0.95
-#the chi quantiles and beta values are obtained using the approximation in equation 3.15 in Krishnamoorty and Mathew (1999, page 239).
-chi_quantile<-k*(1/(n_SPA-1))*(qchisq(1-gamma, n_SPA-p))
-beta_or_chi_probability_SPA<-pchisq(chi_quantile, p, ncp=p/n_SPA, lower.tail = TRUE, log.p = FALSE)
-
-#calculation of ellipses and beta for SPB. The line below is equation 2.2 in Krishnamoorty and Mathew (1999, page 236).
-k<- (n_SPB-1)%*%t(c(x[i],y[i])-m2)%*%solve((n_SPB-1)*Z2)%*%(c(x[i],y[i])-m2)
-k
-p<-2
-#Change the value of gamma to the desired level of statistical confidence to calculate statistical tolerance regions (see Krishnamoorty and Mathew 1999)
-gamma<-0.95
-#the chi quantiles and beta values are obtained using the approximation in equation 3.15 in Krishnamoorty and Mathew (1999, page 239).
-chi_quantile<-k*(1/(n_SPB-1))*(qchisq(1-gamma, n_SPB-p))
-beta_or_chi_probability_SPB<-pchisq(chi_quantile, p, ncp=p/n_SPB, lower.tail = TRUE, log.p = FALSE)
-#Gather in vectors the beta values for various points along the ridgeline manifold. 
-beta_vector_SPA<-append(beta_vector_SPA, beta_or_chi_probability_SPA, after=length(beta_vector_SPA))
-beta_vector_SPB<-append(beta_vector_SPB, beta_or_chi_probability_SPB, after=length(beta_vector_SPB))
-}
-
-
-#Plot the value of beta at various points along the ridgeline manifold,
-#and an horizontal dashed line at beta=0.9 (=a possible a priori cutoff value of 0.1); change according to cutoff value defined a priori (see Wiens and Servedio 2000).
-par(mar=c(5,5,2,2))
-plot(alfa[2:1000], beta_vector_SPA, type="l", col="black", ylim=c(0,1), lwd=2, xlab=expression(~alpha), ylab=expression(paste("Proportion ",beta, " within tolerance region")), cex.axis=1.5, cex.lab=1.5)
-points(alfa[2:1000], beta_vector_SPB, type="l", col="black", lty=1, lwd=2)
-points(alfa[1], beta_vector_SPA[1],cex=3, pch=22)
-points(alfa[1], beta_vector_SPB[1],cex=3, pch=24)
-points(alfa[999], beta_vector_SPA[999],cex=3, pch=22)
-points(alfa[999], beta_vector_SPB[999],cex=3, pch=24)
-abline(h=0.85, lty=3)	# abline(h=0.9, lty=3)
-
-```
-
-
-
 Grahic et al 2013 Morphological evalutation of common bean diversity in Bosnia and Herzegovina using he discriminant analysis of principal compenents (DAPC) multivariate method 
 
 
