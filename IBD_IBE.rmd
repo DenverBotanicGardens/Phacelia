@@ -566,14 +566,7 @@ Now have environmental variables (by going through the sdm vignette)
 follow vegan tutorial, trying to get environmental variables   
 <http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf>
 ```{r}
-data(varespec)
-head(varespec)
 
-#instead of varespec will have bioph ## But I've got negative values so this isn't quite right
-# not the same, varespec are the species in each community, bioph is the bioclim per popuation
-bioph <- sdmdata[cnts!="0",-(1:3)]
-bioph.dis <- vegdist(bioph)
-vare.mds0 <- isoMDS(bioph.dis)
 
 ```
 
@@ -583,8 +576,59 @@ simple mantel statistic  - degree of dissimilarity in one datset compared to det
 <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3873175/>   
 <http://www.molecularecologist.com/2015/06/ibeibd-contour-plots-in-r/>  
 
+Forester et al. 2016 Molecular Ecology 
+##### START HERE #####
+1) PCA 
+2) RDA reduncancy analysis : contrained ordination extends linear regression to multivariate response data to maximize proportion of response variable that is explained. (response variables: genetic data; linear comintation of predictor variables (environemtnal data)) 
 ```{r}
+library(labdsv)
+vegdist()
 
+ph.df <- genind2df(ph1)
+head(ph.df)
+ph.df <- as.data.frame(ph.df)
+ph.df[,2:13] <- sapply(ph.df[,2:13], function(x) as.numeric(x))
+
+ph.vegdist <- vegdist(ph.df[,-1], method = "bray", na.rm = TRUE)
+disana(ph.vegdist)
+
+ph.pco <- pco(ph.vegdist)
+ph.pco$eig
+
+barplot(ph.pco$eig)
+
+ph.genepop <- genind2genpop(ph1)
+tab(ph.genepop)
+```
+
+<http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>  
+Some of this would work better for the environmental variables
+```{r}
+ph.tab <- tab(ph.genepop, NA.method="mean")
+ph.pca <- dudi.pca(ph.tab, scannf=TRUE, scale=FALSE) # nf = 3  #can determine number dimensions in teh final results
+
+summary(ph.pca)
+phxy <- ph.pca$co
+
+s.corcircle(phxy, label = row.names(phxy), grid = TRUE,
+            box = FALSE)
+
+temp <- as.integer(pop(ph1))
+myCol <- transp(c("red","blue"),.7)[temp]
+myPch <- c(15:17)[temp]
+
+plot(ph.pca$li)
+plot(ph.pca$li, col = myCol, pch=myPch) 
+
+## use wordcloud for non-overlapping labels
+library(wordcloud)
+textplot(ph.pca$li[,1], ph.pca$li[,2], words=rownames(ph.tab), cex=1.4, new=FALSE)
+
+## legend the axes by adding loadings
+#abline(h=0,v=0,col="grey",lty=2)
+#s.arrow(ph.pca$c1*.5, add.plot=TRUE)
+legend("topright", pch=c(15,17), col=transp(c("blue","red"),.7),
+leg=c("Group A","Group B"), pt.cex=2)
 
 
 ```
@@ -649,3 +693,10 @@ ggplot(ph.pc, aes(Comp.1, Comp.2, colour = cnts))+
 
 redundancy analysis (RDA): combines PCA on allele frequencies and multiple regression
 Meirmans Molecular Ecology "Seven common mistakes in pouplaiton genetics and how to avoid them"
+
+
+<https://www.analyticsvidhya.com/blog/2016/04/complete-tutorial-tree-based-modeling-scratch-in-python/> 
+```{r}
+
+
+```
