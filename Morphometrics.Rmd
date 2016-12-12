@@ -88,6 +88,11 @@ ldms <- do.call(rbind,landmarks)
 head(ldms)
 
 
+#each column as a landmark
+head(ldms)
+
+wide.ldms <- reshape(ldms, idvar="Ind", timevar = "Ldm", direction = "wide")
+
 
 ```
 
@@ -99,65 +104,48 @@ Edwards Knowles 2014 PRSB
 library(MASS)
 library(cluster)
 library(dendextend)
+library("ape")
 
 # Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
+phdaisy_wide <- daisy(wide.ldms[,-1], metric="gower")
+phclust_wide <- hclust(phdaisy_wide)
+
+ph.dendwide <- as.dendrogram(phclust_wide)
+
+
+
+### When landmarks are taken together:
 phdaisy <- daisy(ldms[,1:2], metric= "gower")
 phclust <- hclust(phdaisy)
 
 ph.dend <- as.dendrogram(phclust)
-ph.dend <- ph.dend %>%
-         color_branches(k = 3) %>%
-         set("branches_lwd", c(2,1,2)) %>%
-         set("branches_lty", c(1,2,1))
 
-plot(ph.dend)
+labelColors <- c("#CDB380", "#036564", "#EB6841")
+# cut dendrogram in 4 clusters
+clusMember = cutree(phclust, 3)
+# function to get color labels
+colLab <- function(n) {
+    if (is.leaf(n)) {
+        a <- attributes(n)
+        labCol <- labelColors[clusMember[which(names(clusMember) == a$label)]]
+        attr(n, "nodePar") <- c(a$nodePar, lab.col = labCol)
+    }
+    n
+}
+# using dendrapply
+clusDendro = dendrapply(ph.dend, colLab)
+# make plot
+plot(clusDendro, main = "Cool Dendrogram", type = "triangle")
 
-
-############
-# get some colors
-cols_branches <- c("darkred", "forestgreen", "orange", "blue")
-# Set the colors of 4 branches
-dend1 <- color_branches(dend1, k = 4, col = cols_branches)
-# or with:
-# dend1 <- set(dend1, "branches_k_color", k = 4, value = cols_branches)
-
-# get the colors of the tips of the dendrogram:
-# col_labels <- cols_branches[cutree(dend1, k = 4)] # this may need tweaking in various cases - the following is a more general solution.
-
-# The following code will work on its own once I uplode dendextend 0.18.6 to CRAN - but that can 
-# take several good weeks until that happens. In the meantime
-# Either use devtools::install_github('talgalili/dendextend')
-# Or just the following:
-source("https://raw.githubusercontent.com/talgalili/dendextend/master/R/attr_access.R")
-
-col_labels <- get_leaves_branches_col(dend1)
-# But due to the way heatmap.2 works - we need to fix it to be in the 
-# order of the data!    
-col_labels <- col_labels[order(order.dendrogram(dend1))]
+plot(as.phylo(ph.dend), type = "unrooted", cex=2, no.margin=TRUE)
 
 
-# Creating Heat Map
-if(!require(gplots)) install.packages("gplots")
-library(gplots)
-heatmap.2(test,  
-        main = paste( "test"),  
-        trace="none",          
-        margins =c(5,7),      
-        col=my_palette,        
-        breaks=col_breaks,     
-        dendrogram="row",      
-        Rowv = dend1,  
-        Colv = "NA", 
-        key.xlab = "Concentration (index)",
-        cexRow =0.6,
-        cexCol = 0.8,
-        na.rm = TRUE,
-        RowSideColors = col_labels, # to add nice colored strips        
-        colRow = col_labels # to add nice colored labels - only for qplots 2.17.0 and higher
-        ) 
-##########
+plot(phclust, labels = ldms$Ind, cex = 0.25)
 
-plot(phclust, labels = ldms$Ind, cex = 0.6, hang = 0.5)
+#look at part of dendrogram
+plot(cut(as.dendrogram(phclust), h = 0.8)$lower[[1]])
+
+
 
 isoMDS()
 ```
