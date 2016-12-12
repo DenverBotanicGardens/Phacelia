@@ -105,6 +105,7 @@ library(MASS)
 library(cluster)
 library(dendextend)
 library("ape")
+library(ggplot2)
 
 # Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
 phdaisy_wide <- daisy(wide.ldms[,-1], metric="gower")
@@ -112,43 +113,36 @@ phclust_wide <- hclust(phdaisy_wide)
 
 ph.dendwide <- as.dendrogram(phclust_wide)
 
+plot(phclust_wide, labels = wide.ldms$Ind, cex = 0.75)
+
+nrow(wide.ldms)
+nrow(ord$points)
+
+par(mar=c(5,5,2,2))
+ord <- isoMDS(phdaisy_wide)
+code <- substr(wide.ldms$Ind,1,2)
+
+ord.xy <- data.frame(wide.ldms$Ind,ord$points,code)
+colnames(ord.xy) <- c("Individual","X","Y","Site")
+
+ggplot(ord.xy, aes(X,Y,colour=Site))+
+  geom_point()+
+  stat_ellipse()
 
 
-### When landmarks are taken together:
-phdaisy <- daisy(ldms[,1:2], metric= "gower")
-phclust <- hclust(phdaisy)
-
-ph.dend <- as.dendrogram(phclust)
-
-labelColors <- c("#CDB380", "#036564", "#EB6841")
-# cut dendrogram in 4 clusters
-clusMember = cutree(phclust, 3)
-# function to get color labels
-colLab <- function(n) {
-    if (is.leaf(n)) {
-        a <- attributes(n)
-        labCol <- labelColors[clusMember[which(names(clusMember) == a$label)]]
-        attr(n, "nodePar") <- c(a$nodePar, lab.col = labCol)
-    }
-    n
-}
-# using dendrapply
-clusDendro = dendrapply(ph.dend, colLab)
-# make plot
-plot(clusDendro, main = "Cool Dendrogram", type = "triangle")
-
-plot(as.phylo(ph.dend), type = "unrooted", cex=2, no.margin=TRUE)
-
-
-plot(phclust, labels = ldms$Ind, cex = 0.25)
-
-#look at part of dendrogram
-plot(cut(as.dendrogram(phclust), h = 0.8)$lower[[1]])
-
-
-
-isoMDS()
 ```
 
+
+Merge morphometrics 
+```{r}
+phfo <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_phfo/Phacelia.formosula.data.2014CSV.csv")
+
+head(phfo)
+phfo <- phfo[,-(18:19)]
+
+
+ph.merg <- merge(wide.ldms, phfo, by.x = "Ind", by.y = "Individual.ID")
+names(ph.merg)
+```
 
   
