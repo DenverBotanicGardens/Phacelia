@@ -69,5 +69,52 @@ library(shapes)
       * see the cons   
       * File > Save > Save consensus... > Save with ".TPS"    
 
-  
+Landmark data
+```{r}
+sites <- c("AS","BR","FR","RN","TC")
+
+landmarks <- lapply(sites, function(x){
+  site <- read.csv(paste("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Landmark_",x,".csv", sep=""), header=FALSE)
+  sitexy <- site[complete.cases(site),]
+  colnames(sitexy) <- c("X","Y")
+  ind <- seq(23,nrow(site),25)
+  indivduals <- sapply(gsub(".*[=]|[.].*", "", site[ind,1]), function(x) rep(x,21))
+  sitexy$Ind <- c(indivduals)
+  sitexy$Ldm <- rep(1:21,nrow(sitexy)/21)
+  sitexy
+})
+
+ldms <- do.call(rbind,landmarks)
+head(ldms)
+
+frxy <- fr[complete.cases(fr),]
+colnames(frxy) <- c("X","Y")
+
+#21 landmarks
+ind <- seq(23,nrow(fr),25)
+indivduals <- sapply(gsub(".*[=]|[.].*", "", fr[ind,1]), function(x) rep(x,21))
+frxy$Ind <- c(indivduals)
+frxy$Ldm <- rep(1:21,nrow(frxy)/21)
+
+
+
+
+```
+
+
+
+
+Edwards Knowles 2014 PRSB
+```{r}
+library(MASS)
+library(cluster)
+
+# Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
+
+
+
+isoMDS()
+```
+
+
   
