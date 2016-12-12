@@ -106,6 +106,7 @@ library(cluster)
 library(dendextend)
 library("ape")
 library(ggplot2)
+library(vegan)
 
 # Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
 phdaisy_wide <- daisy(wide.ldms[,-1], metric="gower")
@@ -139,10 +140,52 @@ phfo <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_
 
 head(phfo)
 phfo <- phfo[,-(18:19)]
+# Change population code to match
 
+unique(phfo$Population.Code)
+unique(code)
+wide.ldms$Ind <- sapply(wide.ldms$Ind, function(x) gsub("FR","FC",x))
 
 ph.merg <- merge(wide.ldms, phfo, by.x = "Ind", by.y = "Individual.ID")
 names(ph.merg)
+
+ph.daisy <- daisy(ph.merg[,c(2:43,50:59)], metric = "gower")
+phclust.all <- hclust(ph.daisy)
+
+plot(phclust.all, labels = ph.merg$Species)
+plot(phclust.all, labels = ph.merg$Population.Code)
+
 ```
+
+```{r}
+
+#par(mar=c(5,5,2,2))
+ord.1 <- isoMDS(ph.daisy)
+
+ord.xy.1 <- data.frame(ph.merg,ord.1$points)
+
+ggplot(ord.xy.1, aes(X1,X2,colour=Species))+
+  geom_point()+
+  stat_ellipse()+
+  theme_bw()
+
+###vegan vignette
+ord.meta <- metaMDS(ph.daisy)
+
+plot(ord.meta)
+
+plot(ord,meta, type = "n")
+points(ord.meta, display = "sites", cex = 0.8, pch=21, col="red", bg="yellow")
+text(ord.meta, display = "spec", cex=0.7, col="blue")
+
+
+#############
+fit <- isoMDS(ph.daisy)
+fit
+
+plot(fit$points[,1], fit$points[,2], type="n")
+text(fit$points[,1], fit$points[,2],labels = ph.merg$Population.Code, cex = 0.7)
+```
+
 
   
