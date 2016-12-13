@@ -5,6 +5,9 @@ date: "November 15, 2016"
 output: html_document
 ---
 
+# add TC
+# test 4 population (two of PhFo, PhGi, and PhSc or not)
+
 Packages
 ```{r}
 library(adegenet)
