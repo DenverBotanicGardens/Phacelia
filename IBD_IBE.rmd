@@ -232,7 +232,7 @@ ph.p <-data.frame(coordinates(ph.points))
 
 
 ```
-
+<http://www.sthda.com/english/wiki/ade4-and-factoextra-principal-component-analysis-r-software-and-data-mining>
 
 Data cleaning
 ```{r}
