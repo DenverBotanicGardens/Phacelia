@@ -96,8 +96,14 @@ wide.ldms <- reshape(ldms, idvar="Ind", timevar = "Ldm", direction = "wide")
 
 ```
 
+### Exclude TC
+# plant height and width (Atwood?) 
+# go back and measure seed entire or pitted FC and TC and detect differences? add to morph data
+#abiotic envelope
 
-
+# Morphometic and DAPC including TC and without
+biological conservation
+diveristy and distributions - conservation and testing a species hypothosis, what lines of evidence needed to split vs. lump... 
 
 Edwards Knowles 2014 PRSB
 ```{r}
@@ -109,6 +115,26 @@ library(ggplot2)
 library(vegan)
 
 # Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
+head(wide.ldms)
+wide.ldms1 <- wide.ldms[-(grep("TC", wide.ldms$Ind)),]
+
+phdaisy_wide1 <- daisy(wide.ldms1[,-1], metric="gower")
+phclust_wide1 <- hclust(phdaisy_wide1)
+
+ph.dendwide1 <- as.dendrogram(phclust_wide1)
+
+ord <- isoMDS(phdaisy_wide1)
+code <- substr(wide.ldms1$Ind,1,2)
+
+ord.xy1 <- data.frame(wide.ldms1$Ind,ord$points,code)
+colnames(ord.xy1) <- c("Individual","X","Y","Site")
+
+ggplot(ord.xy1, aes(X,Y,colour=Site))+
+  geom_point()+
+  stat_ellipse()+
+  theme_bw()
+
+#####
 phdaisy_wide <- daisy(wide.ldms[,-1], metric="gower")
 phclust_wide <- hclust(phdaisy_wide)
 
@@ -149,6 +175,8 @@ wide.ldms$Ind <- sapply(wide.ldms$Ind, function(x) gsub("FR","FC",x))
 ph.merg <- merge(wide.ldms, phfo, by.x = "Ind", by.y = "Individual.ID")
 names(ph.merg)
 
+table(ph.merg$Population.Code)
+
 ph.daisy <- daisy(ph.merg[,c(2:43,50:59)], metric = "gower")
 phclust.all <- hclust(ph.daisy)
 
@@ -186,6 +214,16 @@ fit
 plot(fit$points[,1], fit$points[,2], type="n")
 text(fit$points[,1], fit$points[,2],labels = ph.merg$Population.Code, cex = 0.7)
 ```
+
+
+Klingenberg et al 2011
+```{r}
+
+
+```
+
+
+
 
 
   
