@@ -24,7 +24,37 @@ Pairwise distance matrix
 ```{r}
 ph.dist <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS centroids 2016_pdm.csv")
 
-head(ph.dist)
+
+spatialdist <- dist(ph.dist[-15,3:4]) #exclude Troublesome Creek
+# from DAPC and <http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>
+#genind to genpop
+ph.genepop
+Dgen <- dist.genpop(ph.genepop,method=2)
+Dgeo <- spatialdist
+ibd <- mantel.randtest(Dgen,Dgeo) #repeat this for a distance matrix of climate variables! climate envelope
+ibd
+plot(ibd)
+
+plot(Dgeo,Dgen)
+abline(lm(Dgen~Dgeo), col="red")
+
+library(MASS)
+dens <- kde2d(Dgeo,Dgen, n = 300)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo, Dgen, pch=20,cex=.5)
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgen~Dgeo))
+title("Isolation by distance plot")
+
+
+#### Monmonier’s algorithm to define genetic boundaries
+temp <- ph1$pop
+levels(temp) <- c(3,5)
+temp <- as.numeric(as.character(temp))
+plot(sim2pop$other$xy,pch=temp,cex=1.5,xlab='x',ylab='y')
+legend("topright",leg=c("Pop A", "Pop B"),pch=c(3,5))
+
+
 #convert Northing Easting to lat long
 
 ph.ll <- spTransform(SpatialPoints(cbind(ph.dist$Easting,ph.dist$Northing),
@@ -605,7 +635,7 @@ tab(ph.genepop)
 Some of this would work better for the environmental variables
 ```{r}
 ph.tab <- tab(ph.genepop, NA.method="mean")
-ph.pca <- dudi.pca(ph.tab, scannf=TRUE, scale=FALSE) # nf = 3  #can determine number dimensions in teh final results
+ph.pca <- dudi.pca(ph.tab, scannf=TRUE, scale=FALSE) # nf = 4  #can determine number dimensions in the final results
 
 summary(ph.pca)
 phxy <- ph.pca$co
@@ -629,6 +659,11 @@ textplot(ph.pca$li[,1], ph.pca$li[,2], words=rownames(ph.tab), cex=1.4, new=FALS
 #s.arrow(ph.pca$c1*.5, add.plot=TRUE)
 legend("topright", pch=c(15,17), col=transp(c("blue","red"),.7),
 leg=c("Group A","Group B"), pt.cex=2)
+
+#https://trapa.cz/sites/default/files/r_mol_data_phylogen.pdf
+# Kernel density
+s.label(ph.pca$li, clabel = 0.75)
+s.kde2d(ph.pca$li, cpoint=0, add.plot = TRUE)
 
 
 ```
