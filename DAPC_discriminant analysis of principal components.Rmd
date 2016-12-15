@@ -26,33 +26,6 @@ As opposed to PCA or PCoA/MDS which look at total variance = between groups + wi
 #Find clusters    
 uses genind (microsats) or genlight (SNPs)   
 <https://r-forge.r-project.org/scm/viewvc.php/*checkout*/www/files/adegenet-dapc.pdf?revision=899&root=adegenet>   
-```{r}
-file.show(system.file("files/nancycats.dat", package="adegenet"))
-
-
-data(dapcIllus)
-class(dapcIllus)
-#use first dataset of list
-x<- dapcIllus$d
-x
-
-#How many PCs to keep?
-xvalDapc(x@tab, x@pop)
-
-#in this example there seem to be 24 populations in the simulated data
-grp <- find.clusters(x, max.n.clust = 40)
-
-names(grp)
-grp$Kstat
-grp$size
-
-table(pop(x),grp$grp)
-
-table.value(table(pop(x), grp$grp), col.lab = paste("inf", 1:6),
-            row.lab = paste("ori", 1:6))
-
-
-```
 
 DAPC -     
     1) different from STRUCTURE, still how proximities of individuals to the different clusters  
@@ -61,39 +34,30 @@ DAPC -
     4) Using allele loadings, can predict new indiviudals onto the factorial planes  
     
 - transforms data with PCA then performas a discriminant analysis on retained PCs   
-```{r}
-#infered groups from find.clusters()
 
-dapc1 <- dapc(x, grp$grp)
+infered groups from find.clusters()
 
-#Want to retain few PCs without losing infomration (look for asymptote)
-# I selected 5000 discriminant functions to retain and it says it saved 23
+Want to retain few PCs without losing infomration (look for asymptote)
+ I selected 5000 discriminant functions to retain and it says it saved 23
 
-scatter(dapc1)
-
-# customize figure
-scatter(dapc1, posi.da = "topleft", bg = "white", pch = 1:24)
-
-myCol <- rep(c("darkblue", "purple", "green", "black", "red", "blue"),4)
-scatter(dapc1, posi.da = "topright", bg = "white", pch = 1:24,
-        cstar = 0, col = myCol, scree.pca = TRUE, posi.pca = "topleft")
-
-#remove labels
-scatter(dapc1, scree.da = FALSE, bg = "white", pch = 20, cell = 0,
-        cstar = 0, col = myCol, solid = 0.4, cex = 3, clab = 0, leg = TRUE,
-        txt.leg = paste("Cluster", 1:6))
-
-
-scatter(dapc1, 1, 1, col = myCol, bg = "white", scree.da = FALSE,
-        legend = FALSE, solid = 0.4)
-
-```
+ customize figure
 
 Compute the contributions of the alleles
 ```{r}
 myPal <- colorRampPalette(c("blue", "gold", "red"))
 
 contrib <- loadingplot(dapc1$var.contr, axis = 2, thres = 0.025, lab.jitter = 1)
+
+```
+
+
+With troublesome creek  
+```{r}
+phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser_10Oct2016/Genepop/PhfoAllGenePop_13Dec2016.gen")
+
+phall
+
+grp4 <- find.clusters(phall, max.n.clust = 40) #17PCs and 4 groups
 
 ```
 
@@ -112,9 +76,10 @@ ph1
 
 ```
 
+
 #Define useful clusters
 ```{r}
-grp <- find.clusters(ph1, max.n.clust = 40)
+grp <- find.clusters(ph1, max.n.clust = 35)
 # Choose the number of PCs to retain (>=1): 200 - to keep all
 # Choose the number of cluster (>=2): 10 - the elbow of the curve
 
@@ -135,6 +100,7 @@ dapc1
 
 scatter(dapc1)
 ```
+
 
 ```{r}
 # keep the original 14 populations
