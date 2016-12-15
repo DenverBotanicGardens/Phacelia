@@ -639,7 +639,7 @@ ph.pca <- dudi.pca(ph.tab, scannf=TRUE, scale=FALSE) # nf = 4  #can determine nu
 
 summary(ph.pca)
 phxy <- ph.pca$co
-
+   
 s.corcircle(phxy, label = row.names(phxy), grid = TRUE,
             box = FALSE)
 
