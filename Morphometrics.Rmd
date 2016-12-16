@@ -247,28 +247,33 @@ ggplot(ord.xy5, aes(X1,X2,colour=Population.Code))+
 TukeyHSD(aov(ord.xy5$X1 ~ ord.xy5$Population.Code))
 
 
-# Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
-head(wide.ldms)
-wide.ldms1 <- wide.ldms[-(grep("TC", wide.ldms$Ind)),]
+######## Without TC
+pairs(phfo[-grep("TC",phfo$Population.Code),include[-1]])
 
-phdaisy_wide1 <- daisy(wide.ldms1[,-1], metric="gower")
-phclust_wide1 <- hclust(phdaisy_wide1)
+ph.daisy.4 <- daisy(phfo[-grep("TC",phfo$Population.Code),include[-1]], metric = "gower") 
+  #removed leaf length, PCC 0.62 with leaf width
+phclust.all.4 <- hclust(ph.daisy.4)
 
-ph.dendwide1 <- as.dendrogram(phclust_wide1)
+ord.4 <- isoMDS(ph.daisy.4)
+ord.xy4 <- data.frame(phfo[-grep("TC",phfo$Population.Code),],ord.4$points)
 
-ord <- isoMDS(phdaisy_wide1)
-code <- substr(wide.ldms1$Ind,1,2)
-
-ord.xy1 <- data.frame(wide.ldms1$Ind,ord$points,code)
-colnames(ord.xy1) <- c("Individual","X","Y","Site")
-
-ggplot(ord.xy1, aes(X,Y,colour=Site))+
+ggplot(ord.xy4, aes(X1,X2,colour=Population.Code))+
   geom_point()+
   stat_ellipse()+
   theme_bw()
 
-#####
+TukeyHSD(aov(ord.xy4$X1 ~ ord.xy4$Population.Code))
 
+
+##########
+ph.dist.4 <- dist(phfo[-grep("TC",phfo$Population.Code),include[-1]])
+ph.dist.5 <- dist(phfo[,include[-1]])
+
+meta.5 <- metaMDS(comm = ph.daisy.5) #no solution reached for 4
+meta.4 <- metaMDS(comm = ph.dist.4) #solution reached
+
+plot(meta.5)
+plot(meta.4)
 ```
 
 
@@ -291,6 +296,31 @@ phclust.all <- hclust(ph.daisy)
 
 plot(phclust.all, labels = ph.merg$Species)
 plot(phclust.all, labels = ph.merg$Population.Code)
+
+
+
+# Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
+head(wide.ldms)
+wide.ldms1 <- wide.ldms[-(grep("TC", wide.ldms$Ind)),]
+
+phdaisy_wide1 <- daisy(wide.ldms1[,-1], metric="gower")
+phclust_wide1 <- hclust(phdaisy_wide1)
+
+ph.dendwide1 <- as.dendrogram(phclust_wide1)
+
+ord <- isoMDS(phdaisy_wide1)
+code <- substr(wide.ldms1$Ind,1,2)
+
+ord.xy1 <- data.frame(wide.ldms1$Ind,ord$points,code)
+colnames(ord.xy1) <- c("Individual","X","Y","Site")
+
+ggplot(ord.xy1, aes(X,Y,colour=Site))+
+  geom_point()+
+  stat_ellipse()+
+  theme_bw()
+
+#####
+
 
 ```
 
