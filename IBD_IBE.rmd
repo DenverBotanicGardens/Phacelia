@@ -17,6 +17,11 @@ library(prism)
 library(dismo)
 library(ggplot2)
 library(Imap)
+library(wordcloud)
+library(MASS)
+library(adegenet)
+library(ade4)
+
 
 ```
 
@@ -24,11 +29,19 @@ Pairwise distance matrix
 ```{r}
 ph.dist <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS centroids 2016_pdm.csv")
 
+# Genepop input file without PhGi (TC)
+ph1 <- read.genepop("Q:/Research/Lab/Projects/Phacelia formosula/Phfo_GenePop_FinalRISERgenpop.gen")
+# Genepop input file with PhGi (TC)
+phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser_10Oct2016/Genepop/PhfoAllGenePop_13Dec2016.gen")
 
-spatialdist <- dist(ph.dist[-15,3:4]) #exclude Troublesome Creek
+
+ph1 #without TC
+phall #with TC
+
+spatialdist.noTC <- dist(ph.dist[-15,3:4]) #exclude Troublesome Creek
 # from DAPC and <http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>
 #genind to genpop
-ph.genepop
+ph.genepop #no TC
 Dgen <- dist.genpop(ph.genepop,method=2)
 Dgeo <- spatialdist
 ibd <- mantel.randtest(Dgen,Dgeo) #repeat this for a distance matrix of climate variables! climate envelope
@@ -38,7 +51,6 @@ plot(ibd)
 plot(Dgeo,Dgen)
 abline(lm(Dgen~Dgeo), col="red")
 
-library(MASS)
 dens <- kde2d(Dgeo,Dgen, n = 300)
 myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
 plot(Dgeo, Dgen, pch=20,cex=.5)
@@ -46,7 +58,7 @@ image(dens, col=transp(myPal(300),.7), add=TRUE)
 abline(lm(Dgen~Dgeo))
 title("Isolation by distance plot")
 
-
+## example from adegenet - genind object iwth a matrix of xy coordinates
 #### Monmonier’s algorithm to define genetic boundaries
 temp <- ph1$pop
 levels(temp) <- c(3,5)
@@ -55,8 +67,13 @@ plot(sim2pop$other$xy,pch=temp,cex=1.5,xlab='x',ylab='y')
 legend("topright",leg=c("Pop A", "Pop B"),pch=c(3,5))
 
 
-#convert Northing Easting to lat long
+#
 
+
+```
+
+#convert Northing Easting to lat long
+```{r}
 ph.ll <- spTransform(SpatialPoints(cbind(ph.dist$Easting,ph.dist$Northing),
                           proj4string = CRS("+proj=utm +zone=13 + datus=WGS84")),
             CRS("+proj=longlat +datum=WGS84"))
@@ -73,6 +90,7 @@ ph.dist.eu <- dist(ph.lls)
 
 write.table(ph.dist.eu, "clipboard", sep="\t", row.names=FALSE, col.names = FALSE)
 ph.dist$Population
+
 
 ```
 
@@ -651,7 +669,6 @@ plot(ph.pca$li)
 plot(ph.pca$li, col = myCol, pch=myPch) 
 
 ## use wordcloud for non-overlapping labels
-library(wordcloud)
 textplot(ph.pca$li[,1], ph.pca$li[,2], words=rownames(ph.tab), cex=1.4, new=FALSE)
 
 ## legend the axes by adding loadings
@@ -664,7 +681,6 @@ leg=c("Group A","Group B"), pt.cex=2)
 # Kernel density
 s.label(ph.pca$li, clabel = 0.75)
 s.kde2d(ph.pca$li, cpoint=0, add.plot = TRUE)
-
 
 ```
 
