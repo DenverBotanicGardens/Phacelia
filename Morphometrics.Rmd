@@ -6,8 +6,14 @@ output: pdf_document
 ---
 
 ```{r, eval=FALSE}
-install.packages("shapes")
+#install.packages("shapes")
 library(shapes)
+library(MASS)
+library(cluster)
+library(dendextend)
+library("ape")
+library(ggplot2)
+library(vegan)
 ```
 
 
@@ -69,6 +75,9 @@ library(shapes)
       * see the cons   
       * File > Save > Save consensus... > Save with ".TPS"    
 
+
+
+
 Landmark data
 ```{r}
 sites <- c("AS","BR","FR","RN","TC")
@@ -87,14 +96,118 @@ landmarks <- lapply(sites, function(x){
 ldms <- do.call(rbind,landmarks)
 head(ldms)
 
+# output each population landmarks
+wide.AS <- reshape(landmarks[[1]], idvar="Ind", timevar = "Ldm", direction = "wide") 
+wide.BR <- reshape(landmarks[[2]], idvar="Ind", timevar = "Ldm", direction = "wide") 
+wide.FC <- reshape(landmarks[[3]], idvar="Ind", timevar = "Ldm", direction = "wide") 
+wide.RN <- reshape(landmarks[[4]], idvar="Ind", timevar = "Ldm", direction = "wide") 
+wide.TC <- reshape(landmarks[[5]], idvar="Ind", timevar = "Ldm", direction = "wide") 
+
+write.table(wide.AS[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/wide_AS.txt",
+            col.names=FALSE,row.names = FALSE, quote=FALSE)
+write.table(wide.BR[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/wide_BR.txt",
+            col.names=FALSE,row.names = FALSE, quote=FALSE)
+write.table(wide.FC[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/wide_FC.txt",
+            col.names=FALSE,row.names = FALSE, quote=FALSE)
+write.table(wide.RN[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/wide_RN.txt",
+            col.names=FALSE,row.names = FALSE, quote=FALSE)
+write.table(wide.TC[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/wide_TC.txt",
+            col.names=FALSE,row.names = FALSE, quote=FALSE)
+
 
 #each column as a landmark
 head(ldms)
 
 wide.ldms <- reshape(ldms, idvar="Ind", timevar = "Ldm", direction = "wide")
 
+head(wide.ldms)
+write.table(wide.ldms[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/Phfo_ldms.txt", col.names = FALSE, row.names = FALSE, quote=FALSE)
+```
+
+
+#Shapes
+<http://www.indiana.edu/~g562/PBDB2013/Day%202B%20-%20Geometric%20Morphometrics%20in%20R.pdf>
+<https://www.maths.nottingham.ac.uk/personal/ild/shapes/quick-tutorial.txt> 
+```{r}
+k <- 21 #number of points
+m <- 2  #number of dimensions
+new.dat <- read.in("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/Phfo_ldms.txt",k,m)
+
+plotshapes(new.dat)
+out.procf <- procGPA(new.dat)
+plotshapes(out.procf$rotated)
+
+shapepca(out.procf) #plots the first few PCs
+
+# by population
+new.dat.list <- lapply(c("wide_AS","wide_BR","wide_FC","wide_RN","wide_TC"), function(x){
+  read.in(paste("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/",x,".txt", sep=""),k,m)
+})
+
+out.procf.site <- lapply(new.dat.list, function(x) {
+  procGPA(x)
+  })
+
+out.procf.site[[1]]$n
+
+par(mfrow=c(3,2))
+par(mar=c(2,2,2,2))
+lapply(out.procf.site, function(x){
+  plotshapes(x$rotated)
+})
+
+
+# the Riemannian shape distance between the mean shapes
+sites
+comparisons <- t(combn(1:5,2))
+comparisons[10,][2]
+reimannian.site <- lapply(1:10, function(x){
+  r.s <- riemdist(out.procf.site[[ comparisons[x,][1] ]]$mshape, 
+                  out.procf.site[[ comparisons[x,][2] ]]$mshape)
+  out <- cbind(paste(sites[ comparisons[x,][1] ],sites[ comparisons[x,][2] ], sep="-"),
+               r.s)
+  })
+r.s <- do.call(rbind,reimannian.site)
+r.s
+
+## The procustes distance
+proc.site <- lapply(1:10, function(x){
+  p.s <- procdist(out.procf.site[[ comparisons[x,][1] ]]$mshape, 
+                  out.procf.site[[ comparisons[x,][2] ]]$mshape)
+  out <- cbind(paste(sites[ comparisons[x,][1] ],sites[ comparisons[x,][2] ], sep="-"),
+               p.s)
+})
+
+p.s <- do.call(rbind, proc.site)
+p.s
+```
+
+
+
+
+
+### Include TC
+```{r}
+phdaisy_wide <- daisy(wide.ldms[,-1], metric="gower")
+phclust_wide <- hclust(phdaisy_wide)
+
+ph.dendwide <- as.dendrogram(phclust_wide)
+
+plot(phclust_wide, labels = wide.ldms$Ind, cex = 0.75)
+
+par(mar=c(5,5,2,2))
+ord <- isoMDS(phdaisy_wide)
+code <- substr(wide.ldms$Ind,1,2)
+
+ord.xy <- data.frame(wide.ldms$Ind,ord$points,code)
+colnames(ord.xy) <- c("Individual","X","Y","Site")
+
+ggplot(ord.xy, aes(X,Y,colour=Site))+
+  geom_point()+
+  stat_ellipse()
 
 ```
+
 
 ### Exclude TC
 # plant height and width (Atwood?) 
@@ -106,13 +219,33 @@ biological conservation
 diveristy and distributions - conservation and testing a species hypothosis, what lines of evidence needed to split vs. lump... 
 
 Edwards Knowles 2014 PRSB
+
+# First keep leaf landmarks separate from landmarks
+
 ```{r}
-library(MASS)
-library(cluster)
-library(dendextend)
-library("ape")
-library(ggplot2)
-library(vegan)
+phfo <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_phfo/Phacelia.formosula.data.2014CSV.csv")
+
+head(phfo)
+phfo <- phfo[,-(18:19)]
+
+include <- names(phfo)[c(10:17)]
+
+pairs(phfo[,include])
+cor(phfo[,include], use = "na.or.complete")
+
+ph.daisy.5 <- daisy(phfo[,include[-1]], metric = "gower") #removed leaf length, PCC 0.62 with leaf width
+phclust.all.5 <- hclust(ph.daisy.5)
+
+ord.5 <- isoMDS(ph.daisy.5)
+ord.xy5 <- data.frame(phfo,ord.5$points)
+
+ggplot(ord.xy5, aes(X1,X2,colour=Population.Code))+
+  geom_point()+
+  stat_ellipse()+
+  theme_bw()
+
+TukeyHSD(aov(ord.xy5$X1 ~ ord.xy5$Population.Code))
+
 
 # Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
 head(wide.ldms)
@@ -135,37 +268,13 @@ ggplot(ord.xy1, aes(X,Y,colour=Site))+
   theme_bw()
 
 #####
-phdaisy_wide <- daisy(wide.ldms[,-1], metric="gower")
-phclust_wide <- hclust(phdaisy_wide)
-
-ph.dendwide <- as.dendrogram(phclust_wide)
-
-plot(phclust_wide, labels = wide.ldms$Ind, cex = 0.75)
-
-nrow(wide.ldms)
-nrow(ord$points)
-
-par(mar=c(5,5,2,2))
-ord <- isoMDS(phdaisy_wide)
-code <- substr(wide.ldms$Ind,1,2)
-
-ord.xy <- data.frame(wide.ldms$Ind,ord$points,code)
-colnames(ord.xy) <- c("Individual","X","Y","Site")
-
-ggplot(ord.xy, aes(X,Y,colour=Site))+
-  geom_point()+
-  stat_ellipse()
-
 
 ```
 
 
+Combined   
 Merge morphometrics 
 ```{r}
-phfo <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_phfo/Phacelia.formosula.data.2014CSV.csv")
-
-head(phfo)
-phfo <- phfo[,-(18:19)]
 # Change population code to match
 
 unique(phfo$Population.Code)
