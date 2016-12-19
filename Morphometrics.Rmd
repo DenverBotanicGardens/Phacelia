@@ -93,6 +93,11 @@ landmarks <- lapply(sites, function(x){
   sitexy
 })
 
+# how many individuals per site
+indPsite <- lapply(landmarks, function(x){
+  length(unique(x$Ind))
+})
+
 ldms <- do.call(rbind,landmarks)
 head(ldms)
 
@@ -157,6 +162,7 @@ lapply(out.procf.site, function(x){
 })
 
 
+
 # the Riemannian shape distance between the mean shapes
 sites
 comparisons <- t(combn(1:5,2))
@@ -168,7 +174,7 @@ reimannian.site <- lapply(1:10, function(x){
                r.s)
   })
 r.s <- do.call(rbind,reimannian.site)
-r.s
+data.frame(r.s)
 
 ## The procustes distance
 proc.site <- lapply(1:10, function(x){
@@ -180,6 +186,35 @@ proc.site <- lapply(1:10, function(x){
 
 p.s <- do.call(rbind, proc.site)
 p.s
+
+# tests for 2D mean shape difference, including boostrap and permutation tests
+testshapediff <- lapply(1:10, function(x){
+  resampletest(new.dat.list[[ comparisons[x,][1] ]],
+               new.dat.list[[ comparisons[x,][2] ]]) #resamples = 200, bootstrap with replacement
+  })
+
+head(testshapediff[[1]])
+
+foo <- testshapediff
+  
+foo1 <- lapply(1:10, function(x){
+  out <- paste(sites[ comparisons[x,][1] ],sites[ comparisons[x,][2] ], sep="-")
+  list(testshapediff[[x]],out)
+  })
+
+foo1[[1]][[2]][1]
+
+do.call(rbind,lapply(foo1, function(f){
+  data.frame(SiteComp = f[[2]][1],
+             Lambda = round(f[[1]]$lambda,2),
+             Lambda.pvlaue = round(f[[1]]$lambda.pvalue,2),
+             James = round(f[[1]]$J,2),
+             James.pvalue = round(f[[1]]$J.pvalue,2))
+  })
+)
+
+
+
 ```
 
 
