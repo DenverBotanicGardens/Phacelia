@@ -470,6 +470,23 @@ testshapediff.sp <- lapply(1:3, function(x){
                new.dat.list2[[ compspecies[x,][2]]])
 })
 
+testshapediff.sp[[1]]
+
+tsd.s <- lapply(1:3, function(x){
+  out <- paste(species[ compspecies[x,][1] ],species[ compspecies[x,][2] ], sep="-")
+  list(testshapediff.sp[[x]],out)
+  })
+
+tsd.s[[3]][[2]][1]
+
+do.call(rbind,lapply(tsd.s, function(f){
+  data.frame(SpComp = f[[2]][1],
+             Lambda = round(f[[1]]$lambda,2),
+             Lambda.pvlaue = round(f[[1]]$lambda.pvalue,2),
+             James = round(f[[1]]$J,2),
+             James.pvalue = round(f[[1]]$J.pvalue,2))
+  })
+)
 
 ```
 
