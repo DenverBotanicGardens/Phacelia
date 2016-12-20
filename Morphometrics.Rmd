@@ -76,7 +76,24 @@ library(vegan)
       * File > Save > Save consensus... > Save with ".TPS"    
 
 
-
+7. MorphoJ
+  * read NTS files in with NTSYSpc format and with symmetry since both sides were digitized
+  * Do procrustes fit - to project into tangent space because standard statistical methods such as regression, AOV require data in flat Euclidean space. The point of tangency between two spaces is the sample mean shape. 
+  
+  Check with TPSSmall a regression through origin the set of Euclidean distances in the eudlidean space onto the set of Proscrustes shape distances - if approximation is good, regression slope and correlation will be nearly equal to 1. 
+  <http://www.flywings.org.uk/MorphoJ_guide/frameset.htm?index.htm> 
+  
+  USE ANOVA with species?? as main effect, populaiton and leaves as random effects for a Procrustes ANOVA to check for variation in with and among populaitons and whither this is more than explained by measuremetn error. - must be hierarchical ie. taking into account the nested structure of data since we have unbalanced design In MorphoJ: 'variation' and 'Procrustes ANOVA'
+  - look at sum of squares to measure deviation of observations from the means (within groups)   
+  
+  Permutation tests and discriminant analyses: taking the Procrustes ANOVA - if lowest level, leaves, is statisctically signficant and larger than measurement error. then if more variation in leaves of different populations than within the same population - then pool and use average per population.  
+  1. Parametric t-test for independent samples   
+  2. repeat test using permutations (which do not assume normally distributed data) Useing PAST with Statistics and F and T test for two samples
+  3. Permutation tests for group differences in MorphoJ using regression approach a) preliminaries, edit covariates and code one pop '1' and one '-1'. Then size is regressed onto dummy covariate using permutations to test significance. get P value and percent variance explained by population. 
+  
+  
+  
+  
 
 Landmark data
 ```{r}
@@ -396,6 +413,65 @@ Klingenberg et al 2011
 
 ```
 
+
+Landmark data assuming three species   
+```{r}
+# Phacelia formosula: BR, RN, and AS
+# Phacelia scullyi: FR
+# Phacelia gina-glennea: TC
+
+wide.phfo <- reshape(rbind(landmarks[[1]],landmarks[[2]],landmarks[[4]]),
+                     idvar="Ind", timevar = "Ldm", direction = "wide")
+#wide.FC
+#wide.TC
+
+write.table(wide.phfo[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/wide_phfo.txt",
+            col.names=FALSE,row.names = FALSE, quote=FALSE)
+
+
+new.dat.list2 <- lapply(c("wide_phfo","wide_FC","wide_TC"), function(x){
+  read.in(paste("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/",x,".txt", sep=""),k,m)
+})
+
+# before procustes correction
+plotshapes(new.dat.list2[[1]])
+plotshapes(new.dat.list2[[2]])
+plotshapes(new.dat.list2[[3]])
+
+out.procf.species <- lapply(new.dat.list2, function(x){
+  procGPA(x)
+})
+
+par(mfrow=c(1,3))
+par(mar=c(2,2,2,2))
+lapply(out.procf.species, function(x){
+  plotshapes(x$rotated)
+})
+
+dev.off()
+
+#Riemannian shape distance between mean shapes
+species <- c("phfo","phsc","phgi")
+compspecies <- t(combn(1:3,2))
+reimannian.species <- lapply(1:3, function(x){
+  r.s <- riemdist(out.procf.species[[ compspecies[x,][1]]]$mshape,
+                  out.procf.species[[ compspecies[x,][2]]]$mshape)
+  out <- cbind(paste(species[ compspecies[x,][1]],
+                     species[ compspecies[x,][2]]),
+               r.s)
+})
+r.s.species <- do.call(rbind, reimannian.species)
+data.frame(r.s.species)
+
+
+#test for 2D mean shape differences, boostrap and permutation tests
+testshapediff.sp <- lapply(1:3, function(x){
+  resampletest(new.dat.list2[[ compspecies[x,][1]]],
+               new.dat.list2[[ compspecies[x,][2]]])
+})
+
+
+```
 
 
 
