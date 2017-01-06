@@ -273,7 +273,7 @@ diveristy and distributions - conservation and testing a species hypothosis, wha
 Edwards Knowles 2014 PRSB
 
 # First keep leaf landmarks separate from landmarks
-
+Do not include plant height or width
 ```{r}
 phfo <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_phfo/Phacelia.formosula.data.2014CSV.csv")
 
@@ -283,7 +283,7 @@ phfo <- phfo[,-(18:19)]
 include <- names(phfo)[c(10:17)]
 
 pairs(phfo[,include])
-cor(phfo[,include], use = "na.or.complete")
+cor(phfo[,include], method = "pearson", use = "na.or.complete")
 
 ph.daisy.5 <- daisy(phfo[,include[-1]], metric = "gower") #removed leaf length, PCC 0.62 with leaf width
 phclust.all.5 <- hclust(ph.daisy.5)
@@ -343,13 +343,27 @@ names(ph.merg)
 
 table(ph.merg$Population.Code)
 
-ph.daisy <- daisy(ph.merg[,c(2:43,50:59)], metric = "gower")
+names(ph.merg)
+names(ph.merg[,c(2:43,50:59)])
+
+names(ph.merg[,c(2:43,52:59)])
+
+ph.daisy <- daisy(ph.merg[,c(2:43,52:59)], metric = "gower") # take out 50 and 51 = plant height and width, and leaf length for being correlated
 phclust.all <- hclust(ph.daisy)
 
 plot(phclust.all, labels = ph.merg$Species)
 plot(phclust.all, labels = ph.merg$Population.Code)
 
 
+ord.merged <- isoMDS(ph.daisy)
+ord.merged <- data.frame(ph.merg, ord.merged$points)
+
+ggplot(ord.merged, aes(X1,X2,colour=Population.Code))+
+  geom_point()+
+  stat_ellipse()+
+  theme_bw()
+
+TukeyHSD(aov(ord.merged$X1 ~ ord.merged$Population.Code))
 
 # Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
 head(wide.ldms)
@@ -487,6 +501,8 @@ do.call(rbind,lapply(tsd.s, function(f){
              James.pvalue = round(f[[1]]$J.pvalue,2))
   })
 )
+
+
 
 ```
 

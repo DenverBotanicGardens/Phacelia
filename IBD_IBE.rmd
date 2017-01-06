@@ -34,16 +34,26 @@ ph1 <- read.genepop("Q:/Research/Lab/Projects/Phacelia formosula/Phfo_GenePop_Fi
 # Genepop input file with PhGi (TC)
 phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser_10Oct2016/Genepop/PhfoAllGenePop_13Dec2016.gen")
 
+phall <- read.genepop("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/PhfoAllGenePop_13Dec2016.gen")
 
 ph1 #without TC
 phall #with TC
 
+ph.genepop <- genind2genpop(ph1)
+tab(ph.genepop)
+phall.genepop <- genind2genpop(phall)
+tab(phall.genepop)
+
 spatialdist.noTC <- dist(ph.dist[-15,3:4]) #exclude Troublesome Creek
+spatialdist.TC <- dist(ph.dist[,3:4])
 # from DAPC and <http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>
 #genind to genpop
 ph.genepop #no TC
+phall.genepop #with TC
+
+### without TC
 Dgen <- dist.genpop(ph.genepop,method=2)
-Dgeo <- spatialdist
+Dgeo <- spatialdist.noTC
 ibd <- mantel.randtest(Dgen,Dgeo) #repeat this for a distance matrix of climate variables! climate envelope
 ibd
 plot(ibd)
@@ -58,12 +68,47 @@ image(dens, col=transp(myPal(300),.7), add=TRUE)
 abline(lm(Dgen~Dgeo))
 title("Isolation by distance plot")
 
+
+## with TC Phacelia gina-glennea
+Dgen.tc <- dist.genpop(phall.genepop, method=2)
+Dgeo.tc <- spatialdist.TC
+ibd.tc <- mantel.randtest(Dgen.tc,Dgeo.tc)
+plot(ibd.tc) # Isolation by distance is signficant
+
+# 1. Classical IBD would result in continuous clines of genetic differentiation 
+# 2. distant and differentiated populations also results in this pattern. So...
+
+#plot both distances
+plot(Dgeo.tc,Dgen.tc)
+abline(lm(Dgen.tc~Dgeo.tc), col="red",lty=2)
+
+#Plot- can see patches
+dens.tc <- kde2d(Dgeo.tc,Dgen.tc, n=300)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo.tc, Dgen.tc, pch=20,cex=.5)
+image(dens.tc, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgen.tc~Dgeo.tc))
+title("Isolation by distance plot")
+
+plot(Dgeo.tc,Dgen.tc)
+
+ph.dist
+phfo.gen <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS data 2016_all.csv")
+ph1@other <- 
+  
+head(phall$pop)
+head(phfo.gen)
+unique(phfo$Population.Code)
+#### START HERE
+## convert Northing EAsting to Lat Long,
+# Figure out which ones are missing from phall to match locaiton per collection (phfo.gen has all collection points with TC)
+
 ## example from adegenet - genind object iwth a matrix of xy coordinates
 #### Monmonier’s algorithm to define genetic boundaries
 temp <- ph1$pop
 levels(temp) <- c(3,5)
 temp <- as.numeric(as.character(temp))
-plot(sim2pop$other$xy,pch=temp,cex=1.5,xlab='x',ylab='y')
+plot(ph1$other$xy,pch=temp,cex=1.5,xlab='x',ylab='y')
 legend("topright",leg=c("Pop A", "Pop B"),pch=c(3,5))
 
 
@@ -147,6 +192,8 @@ soils$Population[grep("WSE", soils$Population)] <- "WeatherStation"
 soils$Population[grep("Brownlee", soils$Population)] <- "Brownlee"
 soils$Population[grep("RNA", soils$Population)] <- "ResearchNaturalArea"
 soils$Population[grep("iamond", soils$Population)] <- "DiamondJNE"
+
+table(soils$Population)
 
 ```
 
@@ -232,6 +279,11 @@ BIO19 = Precipitation of Coldest Quarter
 ```{r}
 install.packages(c('raster', 'rgdal', 'dismo', 'rJava'))
 
+#download big bioclim data elsewhere, change wd
+setwd("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/World BioClim Date")
+
+setwd("P:/hackathon/Phacelia")
+
 #check out example file
 file <- paste(system.file(package="dismo"), "/ex/bradypus.csv", sep="")
 bradypus <- read.table(file, header=TRUE, sep=",")
@@ -266,6 +318,7 @@ ph.counties <- colorado[colorado$NAME_2 %in% grep(paste(counties, collapse="|"),
 ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
 plot(usa)
 plot(bioclim$bio1, main="Annual Mean Temperature")
+plot(bioclim$bio2, main="Annual Mean Temperature")
 
 #SRTM 90 Elevation
 srtm <- getData('SRTM', lon= -106, lat = 41)
@@ -280,6 +333,175 @@ ph.p <-data.frame(coordinates(ph.points))
 
 
 ```
+
+
+Bioclim data for Jackson, Larimer, and Grand counties
+```{r}
+bioclim.jackson <- getData("worldclim", var='bio', res = 0.5, lon = -106, lat = 41)
+bioclim.grand <- getData("worldclim", var='bio', res = 0.5, lon = -106, lat = 40)
+bioclim.larimer <- getData("worldclim", var='bio', res = 0.5, lon = -105, lat = 41)
+
+
+bioclim.ph <- mosaic(bioclim.larimer,bioclim.grand,bioclim.jackson, fun=mean)
+
+plot(bioclim.ph$layer.1)
+points(ph.p)
+
+ggplot()+
+  geom_path(data=ph.counties, aes(x=long, y=lat, group=group))+
+  coord_map()+
+  geom_point(data=ph.p, aes(x=coords.x1, y=coords.x2))
+
+#extract rasters to data, should lapply but not sure how
+bio1.ph <- extract(bioclim.ph$layer.1, ph.p)
+bio2.ph <- extract(bioclim.ph$layer.2, ph.p)
+bio3.ph <- extract(bioclim.ph$layer.3, ph.p)
+bio4.ph <- extract(bioclim.ph$layer.4, ph.p)
+bio5.ph <- extract(bioclim.ph$layer.5, ph.p)
+bio6.ph <- extract(bioclim.ph$layer.6, ph.p)
+bio7.ph <- extract(bioclim.ph$layer.7, ph.p)
+bio8.ph <- extract(bioclim.ph$layer.8, ph.p)
+bio9.ph <- extract(bioclim.ph$layer.9, ph.p)
+bio10.ph <- extract(bioclim.ph$layer.10, ph.p)
+bio11.ph <- extract(bioclim.ph$layer.11, ph.p)
+bio12.ph <- extract(bioclim.ph$layer.12, ph.p)
+bio13.ph <- extract(bioclim.ph$layer.13, ph.p)
+bio14.ph <- extract(bioclim.ph$layer.14, ph.p)
+bio15.ph <- extract(bioclim.ph$layer.15, ph.p)
+bio16.ph <- extract(bioclim.ph$layer.16, ph.p)
+bio17.ph <- extract(bioclim.ph$layer.17, ph.p)
+bio18.ph <- extract(bioclim.ph$layer.18, ph.p)
+bio19.ph <- extract(bioclim.ph$layer.19, ph.p)
+
+layers <- sapply(1:19, function(x){
+  paste("bio",x,".ph",sep="")
+})
+
+biodata <- data.frame(soils.unique,bio1.ph,bio19.ph,bio18.ph,bio17.ph,bio16.ph,bio15.ph,bio14.ph,
+                      bio13.ph,bio12.ph,bio11.ph,bio10.ph,bio9.ph,bio8.ph,bio7.ph,bio6.ph,
+                      bio5.ph,bio4.ph,bio3.ph,bio2.ph)
+head(biodata)
+
+# canberra meant for non-negative counts, out, but it does measure relative distance
+# binary only for binary data, out
+# Euclidean isn't great in high dimensions - squares the differences
+# Manhattan just takes absolute value
+
+bio.dist <- dist(biodata[,30:48], method="manhattan") 
+
+bio.prcomp <- prcomp(biodata[,30:48], center = TRUE)
+print(bio.prcomp)
+summary(bio.prcomp)
+
+plot.bio <- data.frame(biodata,bio.prcomp$x)
+
+populations <- unique(plot.bio$Population)
+plot.bio$Species <- "phsc"
+plot.bio$Species[plot.bio$Population %in% paste(populations[c(1:3,5:7,11:15)],sep="|")] <- "phfo"
+plot.bio$Species[plot.bio$Population == populations[4]] <- "phgi"
+
+
+ggplot(plot.bio, aes(PC1,PC2, colour=Population))+
+  geom_point()
+
+## try with princomp
+cor.table <- cor(biodata[,30:48])
+data <- as.data.frame(as.table(cor.table))
+combns <- combn(colnames(cor.table),2,FUN=function(x) paste(x,collapse = "_"))
+cor.data <- data[data$Var1 != data$Var2, ]
+data <- cor.data[paste(cor.data$Var1, cor.data$Var2, sep="_") %in% combns,]
+exclude <- paste(data$Var2[abs(data$Freq)>0.70],sep=",")
+
+bionames <- names(biodata[,30:48])
+keep <- bionames[!bionames %in% unique(exclude)]
+
+pairs(biodata[,keep])
+      
+ph.pca <- princomp(biodata[,keep], cor=TRUE)
+summary(ph.pca)
+asmi.load <- loadings(ph.pca) #1: Annual Mean Temperature, 11: Mean temp of coldest quarter, 9: Mean temp of driest quarter
+
+
+ggplot(plot.bio, aes(bio1.ph, bio11.ph, colour = Species))+
+  geom_point()+
+  labs(x = "Annual mean temperature", y = "Mean temperature of coldest quarter")+
+#  geom_polygon(aes(fill = Species), alpha = 0.3)+
+  theme_bw()
+
+
+ggplot(plot.bio, aes(bio1.ph, bio9.ph, colour = Species))+
+  geom_point()+
+  labs(x = "Annual mean temperature", y = "Mean temperature of driest quarter")+
+  theme_bw()
+
+
+ggplot(plot.bio, aes(bio11.ph, bio9.ph, colour = Species))+
+  geom_point()+
+  labs(x = "Mean temperature of coldest quarter", y = "Mean temperature of driest quarter")+
+  theme_bw()
+
+ggplot(plot.bio, aes(bio11.ph, bio9.ph, colour = Species))+
+  geom_point()+
+  labs(x = "Mean temperature of coldest quarter", y = "Mean temperature of driest quarter")+
+  theme_bw()
+
+ggplot(plot.bio, aes(bio14.ph, bio19.ph, colour = Species))+
+  geom_point()+
+  labs(x = "Precipitation of Driest Month", y = "Precipitation of Coldest Quarter")+
+  theme_bw()
+
+ggplot(plot.bio, aes(bio6.ph, bio19.ph, colour = Species))+
+  geom_point()+
+  labs(x = "Min Temperature of Coldest Month", y = "Precipitation of Coldest Quarter")+
+  theme_bw()
+
+unique(plot.bio$MUSYM)
+unique(plot.bio$MUKIND)
+unique(plot.bio$MUKEY)
+
+ggplot(plot.bio, aes(MUSYM, bio6.ph, colour = Species))+
+  geom_violin()+
+  geom_point()+
+  labs(x= "Soil Type", y = "Min Temperature of Coldest Month")+
+  theme_bw()
+
+
+#Which are correlated? 
+data[abs(data$Freq)>0.75,]
+
+# Use daisy to combine bioclim and soil
+
+```
+
+
+### TO DO:
+<http://creativemorphometrics.co.vu/blog/2014/03/27/extracting-climate-data-in-r/>    
+get data   
+```{r}
+setwd("~/tmean") #this is the folder with all the GeoTiffs
+library(raster)
+library(sp)
+library(rgdal)
+meanJan <- raster("tmean1_16.tif") #mean temp for January etc.
+meanFeb <- raster("tmean2_16.tif")
+meanMar <- raster("tmean3_16.tif")
+meanApr <- raster("tmean4_16.tif")
+meanMaj <- raster("tmean5_16.tif")
+meanJun <- raster("tmean6_16.tif")
+meanJul <- raster("tmean7_16.tif")
+meanAvg <- raster("tmean8_16.tif")
+meanSep <- raster("tmean9_16.tif")
+meanOkt <- raster("tmean10_16.tif")
+meanNov <- raster("tmean11_16.tif")
+meanDec <- raster("tmean12_16.tif")
+plot(meanJan) #will simply get the basic R plot of a GeoTiff raster
+
+
+
+
+```
+
+
 <http://www.sthda.com/english/wiki/ade4-and-factoextra-principal-component-analysis-r-software-and-data-mining>
 
 Data cleaning
@@ -296,6 +518,7 @@ ph.points <- spTransform(SpatialPoints(cbind(soils.unique$EastingAll,soils.uniqu
 #Make a SpatialPointsDataFrame
 library(sp)
 
+ph.p <-data.frame(coordinates(ph.points))
 
 ggplot()+
   geom_path(data=ph.counties, aes(x=long, y=lat, group=group))+
