@@ -377,8 +377,10 @@ layers <- sapply(1:19, function(x){
   paste("bio",x,".ph",sep="")
 })
 
-biodata <- data.frame(soils.unique,bio1.ph,bio19.ph,bio18.ph,bio17.ph,bio16.ph,bio15.ph,bio14.ph,
-                      bio13.ph,bio12.ph,bio11.ph,bio10.ph,bio9.ph,bio8.ph,bio7.ph,bio6.ph,
+biodata <- data.frame(soils.unique,bio1.ph,bio19.ph,bio18.ph,
+                      bio17.ph,bio16.ph,bio15.ph,bio14.ph,bio13.ph,bio12.ph,
+                      bio11.ph,bio10.ph,bio9.ph,
+                      bio8.ph,bio7.ph,bio6.ph,
                       bio5.ph,bio4.ph,bio3.ph,bio2.ph)
 head(biodata)
 
@@ -387,9 +389,46 @@ head(biodata)
 # Euclidean isn't great in high dimensions - squares the differences
 # Manhattan just takes absolute value
 
-bio.dist <- dist(biodata[,30:48], method="manhattan") 
+#Should keep only not correltated ones
+cor.table <- cor(biodata[,30:48])
+data <- as.data.frame(as.table(cor.table))
+combns <- combn(colnames(cor.table),2,FUN=function(x) paste(x,collapse = "_"))
+cor.data <- data[data$Var1 != data$Var2, ]
+data <- cor.data[paste(cor.data$Var1, cor.data$Var2, sep="_") %in% combns,]
+head(data)
 
-bio.prcomp <- prcomp(biodata[,30:48], center = TRUE)
+data[data$Var1 == "bio1.ph" & data$Freq > 0.7,]
+data[data$Var2 == "bio1.ph"& data$Freq > 0.7,]
+data[data$Freq > 0.7,]
+
+# Keep only annual precipitation
+data <- data[data$Var1 != "bio19.ph" & data$Var2 != "bio19.ph",]
+data <- data[data$Var1 != "bio18.ph" & data$Var2 != "bio18.ph",]
+data <- data[data$Var1 != "bio17.ph" & data$Var2 != "bio17.ph",]
+data <- data[data$Var1 != "bio16.ph" & data$Var2 != "bio16.ph",]
+data <- data[data$Var1 != "bio15.ph" & data$Var2 != "bio15.ph",]
+data <- data[data$Var1 != "bio14.ph" & data$Var2 != "bio14.ph",]
+data <- data[data$Var1 != "bio13.ph" & data$Var2 != "bio13.ph",]
+
+# If keep bio12: get rid of bio3 (Isothermality), keep annual mean temp (1)
+data <- data[data$Var1 != "bio3.ph" & data$Var2 != "bio3.ph",]
+data <- data[data$Var1 != "bio10.ph" & data$Var2 != "bio10.ph",]
+data <- data[data$Var1 != "bio8.ph" & data$Var2 != "bio8.ph",]
+
+# Keep bio2: mean diurnal range, get rid of 4,5,and 7
+data <- data[data$Var1 != "bio4.ph" & data$Var2 != "bio4.ph",]
+data <- data[data$Var1 != "bio5.ph" & data$Var2 != "bio5.ph",]
+data <- data[data$Var1 != "bio7.ph" & data$Var2 != "bio7.ph",]
+
+#Either keep min temp of coldest month (6) or quarter (11)
+data <- data[data$Var1 != "bio11.ph" & data$Var2 != "bio11.ph",]
+
+names(biodata[,c(30,38,41,44,48)])
+pairs(biodata[,c(30,38,41,44,48)])
+
+bio.dist <- dist(biodata[,c(30,38,41,44,48)], method="manhattan") 
+
+bio.prcomp <- prcomp(biodata[,c(30,38,41,44,48)], center = TRUE)
 print(bio.prcomp)
 summary(bio.prcomp)
 
@@ -402,29 +441,35 @@ plot.bio$Species[plot.bio$Population == populations[4]] <- "phgi"
 
 
 ggplot(plot.bio, aes(PC1,PC2, colour=Population))+
-  geom_point()
+  geom_point()+
+  theme_bw()
+
+
+ggplot(plot.bio, aes(PC1,PC2, colour=Species))+
+  geom_point()+
+  theme_bw()
 
 ## try with princomp
-cor.table <- cor(biodata[,30:48])
-data <- as.data.frame(as.table(cor.table))
-combns <- combn(colnames(cor.table),2,FUN=function(x) paste(x,collapse = "_"))
-cor.data <- data[data$Var1 != data$Var2, ]
-data <- cor.data[paste(cor.data$Var1, cor.data$Var2, sep="_") %in% combns,]
-exclude <- paste(data$Var2[abs(data$Freq)>0.70],sep=",")
+bionames <- names(biodata[,c(30,38,41,44,48)])
 
-bionames <- names(biodata[,30:48])
-keep <- bionames[!bionames %in% unique(exclude)]
-
-pairs(biodata[,keep])
+pairs(biodata[,c(30,38,41,44,48)])
+keep <- c(30,38,41,44,48)
       
 ph.pca <- princomp(biodata[,keep], cor=TRUE)
 summary(ph.pca)
 asmi.load <- loadings(ph.pca) #1: Annual Mean Temperature, 11: Mean temp of coldest quarter, 9: Mean temp of driest quarter
 
 
-ggplot(plot.bio, aes(bio1.ph, bio11.ph, colour = Species))+
+plot.pca <- data.frame(ph.pca$scores, plot.bio)
+
+ggplot(plot.pca, aes(Comp.1,Comp.2,colour = Species))+
   geom_point()+
-  labs(x = "Annual mean temperature", y = "Mean temperature of coldest quarter")+
+  theme_bw()
+
+ggplot(plot.bio, aes(bio6.ph, bio2.ph, colour = Species))+
+  geom_point()+
+  labs(x = "Min Temperature of Coldest Month", 
+       y = "Mean Diurnal Range (Mean of monthly (max temp - min temp))")+
 #  geom_polygon(aes(fill = Species), alpha = 0.3)+
   theme_bw()
 
@@ -432,6 +477,17 @@ ggplot(plot.bio, aes(bio1.ph, bio11.ph, colour = Species))+
 ggplot(plot.bio, aes(bio1.ph, bio9.ph, colour = Species))+
   geom_point()+
   labs(x = "Annual mean temperature", y = "Mean temperature of driest quarter")+
+  theme_bw()
+
+ggplot(plot.bio, aes(bio1.ph, bio12.ph, colour = Species))+
+  geom_point()+
+  labs(x = "Annual mean temperature", y = "Annual Precipitation")+
+  theme_bw()
+
+
+# summer and winter moisture... 
+ggplot(plot.bio, aes(bio18.ph, bio19.ph, colour = Species))+
+  geom_point()+
   theme_bw()
 
 
@@ -459,10 +515,10 @@ unique(plot.bio$MUSYM)
 unique(plot.bio$MUKIND)
 unique(plot.bio$MUKEY)
 
-ggplot(plot.bio, aes(MUSYM, bio6.ph, colour = Species))+
+ggplot(plot.bio, aes(MUSYM, bio12.ph, colour = Species))+
   geom_violin()+
   geom_point()+
-  labs(x= "Soil Type", y = "Min Temperature of Coldest Month")+
+  labs(x= "Soil Type", y = "Annual Precipitation")+
   theme_bw()
 
 
