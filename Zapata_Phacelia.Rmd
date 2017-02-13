@@ -26,6 +26,8 @@ R script from Appendix 5 in Zapata F., Jimenez I. Species Delimitation in System
 ```{r}
 # Principal component analysis on correlation matrix
 # Getting rid of Species through Plant Height 
+
+#1/6/2017 - exclude plant height and width
 phfocc <- phfo[complete.cases(phfo),]
 pairs(phfocc[,-(1:7)])
 cor(phfocc[,-(1:7)])
@@ -39,6 +41,23 @@ loadings(pa)
 phfocc <- cbind(phfocc, as.data.frame(pa$scores))
 
 table(phfocc$Population.Code)
+
+#without plant height or width
+pairs(phfocc[,-(1:9)])
+cor(phfocc[,-(1:10)]) # get rid of leaf length
+
+pa.2 <- pca(phfocc[,-(1:10)], cor = TRUE)
+
+summary(pa.2)
+loadings(pa.2)
+
+pa.xy <- data.frame(phfocc, pa.2$scores)
+
+ggplot(pa.xy, aes(PC1, PC2, colour = Population.Code))+
+  geom_point()+
+  stat_ellipse()+
+  theme_bw()
+
 ```
 
 Calculate sample size, mean, and variance-covariance for each group
