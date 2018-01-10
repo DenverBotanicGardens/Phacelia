@@ -5,10 +5,14 @@ date: "November 29, 2016"
 output: html_document
 ---
 
+```{r}
+rm(list=ls())
+```
+
 #Load libraries.
 ```{r}
 library(labdsv)
-library(ellipse)
+#library(ellipse)
 library(mvtnorm)
 library(ggplot2)
 library(vegan)
@@ -22,31 +26,42 @@ head(phfo)
 phfo <- phfo[,-(18:19)]
 ```
 
-R script from Appendix 5 in Zapata F., Jimenez I. Species Delimitation in Systematics: Inferring Gaps in Morphology across Geography.
+R script from Appendix 5 in Zapata F., Jimenez I. Species Delimitation in Systematics: Inferring Gaps in Morphology across Geography.      
+Why did I use pca from labdsv instead of princomp from stats? 
 ```{r}
 # Principal component analysis on correlation matrix
 # Getting rid of Species through Plant Height 
 
 #1/6/2017 - exclude plant height and width
-phfocc <- phfo[complete.cases(phfo),]
-pairs(phfocc[,-(1:7)])
+phfocc <- phfo[complete.cases(phfo),] #8 rows out
+pairs(phfocc[,-(1:7)]) #plant height and width are phfocc[,8:9]
 cor(phfocc[,-(1:7)])
 
+
+#has plant height and width
 pa <- pca(phfocc[,-(1:7)], cor = TRUE)
 
+#without height and width of plant
+pa2 <- pca(phfocc[,-(1:9)])
+
 summary(pa)
+summary(pa2)
 loadings(pa)
+loadings(pa2)
 
 # Add PC scores to the data matrix
 phfocc <- cbind(phfocc, as.data.frame(pa$scores))
+phfocc2 <- cbind(phfocc, as.data.frame(pa2$scores))
+
 
 table(phfocc$Population.Code)
 
 #without plant height or width
-pairs(phfocc[,-(1:9)])
-cor(phfocc[,-(1:10)]) # get rid of leaf length
+#pairs(phfocc[,-(1:9)])
+pairs(phfocc[,c(10:13)])
+cor(phfocc[,(10:17)]) # get rid of leaf length, why? Oh, length and width correlated and length to pinnae pair which makes sense... 
 
-pa.2 <- pca(phfocc[,-(1:10)], cor = TRUE)
+pa.2 <- pca(phfocc[,(11:17)], cor = TRUE)
 
 summary(pa.2)
 loadings(pa.2)
@@ -58,6 +73,10 @@ ggplot(pa.xy, aes(PC1, PC2, colour = Population.Code))+
   stat_ellipse()+
   theme_bw()
 
+#identical to pca, either should be fine
+pcaphfo1 <- princomp(phfocc[,c(11:17)], cor=TRUE)
+summary(pcaphfo1)
+phfocc <- cbind(phfocc, as.data.frame(pcaphfo1$scores))
 ```
 
 Calculate sample size, mean, and variance-covariance for each group
@@ -129,31 +148,51 @@ Plot the first two components, the bivariate means of the two species/sites, and
 ggplot()+
   geom_point(data = phfocc, aes(PC1, PC2, colour = Population.Code))+
   stat_ellipse(data = phfocc, aes(PC1, PC2, colour = Population.Code))+
-  geom_point(data = phfo2, aes(m1.PC1, m1.PC2), col = "black", cex = 4.5)+
+  geom_point(data = phfo2, aes(m1.PC1, m1.PC2), col = "black", cex = 4)+
   geom_point(data = phfo2, aes(m1.PC1, m1.PC2, colour = site), cex = 3)+
+#  geom_path(data=ridge, aes(d.1., d.2., colour=site))+
   theme_bw()
 
 ```
 
 ```{r}
+apply(t(df), 1, function(x){
+  plot(phfocc$PC1, phfocc$PC2, cex=2, xlab="PC1", ylab="PC2", type = "n",
+       main = paste(x[1],"-",x[2],sep=""))
+  points(phfocc$PC1[phfocc$Population.Code==x[1]], 
+       phfocc$PC2[phfocc$Population.Code==x[1]], cex=1, col="blue")
+  points(phfocc$PC1[phfocc$Population.Code==x[2]], 
+         phfocc$PC2[phfocc$Population.Code==x[2]], cex=1, col="goldenrod")
+  points(data.phfo$m1[data.phfo$site == x[1]][1],
+         data.phfo$m1[data.phfo$site == x[1]][2], cex=2, pch=19)
+  points(data.phfo$m1[data.phfo$site == x[2]][1],
+         data.phfo$m1[data.phfo$site == x[2]][2], cex=2, pch=19)
+  points(ridge$d.1.[ridge$site == paste(x[1],"-",x[2],sep="")], 
+         ridge$d.2.[ridge$site == paste(x[1],"-",x[2],sep="")], 
+         type="l", col="red", lty=1, lwd=3)
+  })
+```
 
-plot(phfocc$PC1, phfocc$PC2, cex=2, xlab="PC1", ylab="PC2", type = "n")
-points(phfocc$PC1[phfocc$Population.Code=="FC"], 
-       phfocc$PC2[phfocc$Population.Code=="FC"], cex=1, col="blue")
-points(phfocc$PC1[phfocc$Population.Code=="BR"], 
-       phfocc$PC2[phfocc$Population.Code=="BR"], cex=1, col="goldenrod")
-points(data.phfo$m1[data.phfo$site == "FC"][1],
-       data.phfo$m1[data.phfo$site == "FC"][2], cex=2, pch=19)
-points(data.phfo$m1[data.phfo$site == "BR"][1],
-       data.phfo$m1[data.phfo$site == "BR"][2], cex=2, pch=19)
-points(ridge$d.1.[ridge$site == "FC-BR"], ridge$d.2.[ridge$site == "FC-BR"], 
-       type="l", col="red", lty=1, lwd=3)
+```{r}
+for(i in 1:length(df)){
+  phfocc_site <- phfocc[phfocc$Population.Code %in% paste(t(df)[i,]),]
+  ridge_site <- ridge[ridge$site == paste(t(df)[i,1],"-",t(df)[i,2], sep=""),]
+  print(ggplot()+
+    geom_point(data=phfocc_site, aes(PC1,PC2,colour=Population.Code))+
+    theme_bw()+
+    geom_path(data=ridge_site, aes(d.1., d.2., colour=site))+
+    stat_ellipse(data=phfocc_site, aes(PC1,PC2,colour=Population.Code), linetype=3)+
+    stat_ellipse(data=phfocc_site, aes(PC1,PC2,colour=Population.Code), level=0.85, linetype=3)+
+    stat_ellipse(data=phfocc_site, aes(PC1,PC2,colour=Population.Code), level=0.75, linetype=3))
+}
+
 
 ```
 
 ```{r}
 ggplot(ridge, aes(alfa, pdf, colour = site))+
-  geom_line()
+  geom_line()+
+  theme_bw()
 
 ```
 
@@ -199,10 +238,12 @@ toleranceell <- do.call(rbind, TolEll)
 
 ```{r}
 ggplot(toleranceell, aes(colour = site))+
-  geom_point(aes(alfa, beta_vector_SPA), col = "red")+
-  geom_point(aes(alfa, beta_vector_SPB), col = "purple")+
+  geom_line(aes(alfa, beta_vector_SPA), col = "red")+
+  geom_line(aes(alfa, beta_vector_SPB), col = "purple")+
   facet_grid(~site)+
-  theme_bw()
+  theme_bw()+
+  geom_hline(yintercept =0.8)+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
 
@@ -639,5 +680,91 @@ plot(rdas[[1]][[2]])
 
 ```
 Grahic et al 2013 Morphological evalutation of common bean diversity in Bosnia and Herzegovina using he discriminant analysis of principal compenents (DAPC) multivariate method 
+
+
+
+Need geographic location of each collection, regress location on morphological variables     
+From Edits for others/2014/Phacelia formosula_2014 the Onine appendix 5 r script from paper
+```{r}
+geoloc_ph <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/geoloc_ph.csv")
+
+head(geoloc_ph)
+ggmap(get_map(c(-107,40,-105.5,41)))+
+  geom_point(data=geoloc_ph, aes(long,lat))
+```
+
+```{r}
+anyrepeats <- as.data.frame(table(geoloc_ph$lat,geoloc_ph$long))
+repeats <- anyrepeats[anyrepeats$Freq>1,]
+#need to slightly alter these repeated coordinates
+for(i in 1:nrow(repeats)){
+    geoloc_ph$long[which(geoloc_ph$long == repeats$Var2[i] &
+                     geoloc_ph$lat == repeats$Var1[i])] <-
+      geoloc_ph$long[which(geoloc_ph$long == repeats$Var2[i] &
+                     geoloc_ph$lat == repeats$Var1[i])] + (0.0000001*(1:repeats$Freq[i]))
+}
+checkrepeats <- as.data.frame(table(geoloc_ph$lat,geoloc_ph$long))
+checkrepeats[checkrepeats$Freq>1,]
+
+
+#yarg, above isn't quiete working, just jitter?
+jitrep <- as.data.frame(table(jitter(geoloc_ph$long), jitter(geoloc_ph$lat)))
+jitrep[jitrep$Freq>1,]
+
+geoloc_ph$lat <- jitter(geoloc_ph$lat)
+geoloc_ph$long <- jitter(geoloc_ph$long)
+
+checkjit <- as.data.frame(table(geoloc_ph$lat,geoloc_ph$long))
+checkjit[checkjit$Freq>1,]
+
+```
+
+
+```{r}
+#compare two populations at a time
+coor <- geoloc_ph[geoloc_ph$Population.Code %in% c("FC","TC"),]
+n_coor <- nrow(coor)
+factorial(n_coor)/(2*factorial(n_coor-2))
+d <- as.matrix(dist(coor)) #NA? 
+length(d[upper.tri(d)])
+inspect_coor<-which(d==0, arr.ind=T)
+nrow(inspect_coor)
+(nrow(inspect_coor)-n_coor)/2
+#if (and only if) the number above is higher than zero, run the next script line to look up the columns and rows
+#where the non-diagonal elements in the distance matrix have zero distance. Alter the coordinates of as few
+#specimens as possible, and by as little as possible, to avoid any non-diagonal zero elements in the distance matrix.
+    #inspect_coor
+
+
+```
+
+```{r}
+#Run first RDA to detrend original response variables (PC1, PC2) using geographic coordinates as explanatory variables.
+#Define response variables.
+data_PC1<-PC1[SP==SPA | SP==SPB]
+data_PC2<-PC2[SP==SPA | SP==SPB]
+#Define explanatory variables.
+X<-coor[,1]
+Y<-coor[,2]
+#Define the formula for RDA.
+b<-c("X","Y")
+formula_det<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", paste(b, collapse= "+")))
+#Run and plot RDA and test significance by permutation.
+rda_det_model<-rda(formula_det)
+plot(rda_det_model)
+anova(rda_det_model, alpha=0.05, beta=0.01, step=100, perm.max=9999)
+#If (and only if) there is a siginificant linear trend, run the next script line
+#to extract residuals.
+det_residuals<-residuals(rda_det_model)
+
+
+```
+
+
+
+
+
+
+
 
 
