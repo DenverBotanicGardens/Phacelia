@@ -6,6 +6,10 @@ output: html_document
 ---
 
 ```{r}
+rm(list=ls())
+```
+
+```{r}
 library(raster)
 library(rgdal)
 library(maptools)
@@ -21,7 +25,14 @@ library(wordcloud)
 library(MASS)
 library(adegenet)
 library(ade4)
+library(ggmap)
 
+```
+
+Tutorials
+```{r}
+adegenetTutorial("spca")
+adegenetTutorial("dapc")
 
 ```
 
@@ -29,15 +40,30 @@ Pairwise distance matrix
 ```{r}
 ph.dist <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS centroids 2016_pdm.csv")
 
+#Convert the Northing/Easting to lat/long
+ph.dist.UTM <- SpatialPoints(ph.dist[,c("Easting","Northing")],
+                        proj4string = CRS("+proj=utm +zone=13 +datum=NAD83"))
+ph.dist.LatLon <- spTransform(ph.dist.UTM, CRS("+proj=longlat +datum=WGS84"))
+ph.dist <- data.frame(ph.dist,ph.dist.LatLon)
+
+#what?
+ggmap(get_map(c(-107,40.25,-105.25,41)))+
+  geom_point(data=ph.dist, aes(Easting.1,Northing.1))
+
+```
+
+
+
+```{r}
 # Genepop input file without PhGi (TC)
 ph1 <- read.genepop("Q:/Research/Lab/Projects/Phacelia formosula/Phfo_GenePop_FinalRISERgenpop.gen")
 # Genepop input file with PhGi (TC)
-phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser_10Oct2016/Genepop/PhfoAllGenePop_13Dec2016.gen")
+phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser/Genepop/PhfoAllGenePop_13Dec2016.gen")
 
-phall <- read.genepop("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/PhfoAllGenePop_13Dec2016.gen")
+#phall <- read.genepop("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/PhfoAllGenePop_13Dec2016.gen")
 
 ph1 #without TC
-phall #with TC
+phall #with TC 
 
 ph.genepop <- genind2genpop(ph1)
 tab(ph.genepop)
@@ -60,7 +86,11 @@ plot(ibd)
 
 plot(Dgeo,Dgen)
 abline(lm(Dgen~Dgeo), col="red")
+```
 
+spatial Analysis of principal components (sPCA) complements classical PCA retrieving non-trivial spatial genetic patterns
+
+```{r}
 dens <- kde2d(Dgeo,Dgen, n = 300)
 myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
 plot(Dgeo, Dgen, pch=20,cex=.5)
@@ -94,8 +124,22 @@ plot(Dgeo.tc,Dgen.tc)
 
 ph.dist
 phfo.gen <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS data 2016_all.csv")
-ph1@other <- 
-  
+#ph1@other <- 
+
+#Convert the Northing/Easting to lat/long
+ptsutm <- SpatialPoints(phfo.gen[,c("Easting","Northing")],
+                        proj4string = CRS("+proj=utm +zone=13 +datum=NAD83"))
+ptsgeo <- spTransform(ptsutm, CRS("+proj=longlat +datum=WGS84"))
+
+latlonphfo <- data.frame(phfo.gen,ptsgeo)
+
+ggmap(get_map(c(-107,40.5,-105.5,41)))+
+  geom_point(data=data, aes(long,lat,shape=Population.Code),size=4)+ #from Zapata_Phacelia.Rmd
+  geom_point(data=latlonphfo, aes(Easting.1,Northing.1,colour=Population))
+```
+
+
+```{r}  
 head(phall$pop)
 head(phfo.gen)
 unique(phfo$Population.Code)
