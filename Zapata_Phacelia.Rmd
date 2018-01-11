@@ -24,6 +24,10 @@ phfo <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_
 
 head(phfo)
 phfo <- phfo[,-(18:19)]
+
+# Email from Melissa Islam 1/11/2018 - error in linking a GPS point to sample, correct information is 40.71935199, -106.4057474. This one was taken just three minutes after sample BR29.  
+phfo$lat[phfo$Individual.ID == "BR30"] <- 40.71935199
+phfo$long[phfo$Individual.ID == "BR30"] <-  -106.4057474
 ```
 
 R script from Appendix 5 in Zapata F., Jimenez I. Species Delimitation in Systematics: Inferring Gaps in Morphology across Geography.      
@@ -150,7 +154,7 @@ ggplot()+
   stat_ellipse(data = phfocc, aes(PC1, PC2, colour = Population.Code))+
   geom_point(data = phfo2, aes(m1.PC1, m1.PC2), col = "black", cex = 4)+
   geom_point(data = phfo2, aes(m1.PC1, m1.PC2, colour = site), cex = 3)+
-#  geom_path(data=ridge, aes(d.1., d.2., colour=site))+
+  geom_path(data=ridge, aes(d.1., d.2., colour=site), linetype=3)+
   theme_bw()
 
 ```
@@ -180,10 +184,11 @@ for(i in 1:length(df)){
   print(ggplot()+
     geom_point(data=phfocc_site, aes(PC1,PC2,colour=Population.Code))+
     theme_bw()+
-    geom_path(data=ridge_site, aes(d.1., d.2., colour=site))+
-    stat_ellipse(data=phfocc_site, aes(PC1,PC2,colour=Population.Code), linetype=3)+
-    stat_ellipse(data=phfocc_site, aes(PC1,PC2,colour=Population.Code), level=0.85, linetype=3)+
-    stat_ellipse(data=phfocc_site, aes(PC1,PC2,colour=Population.Code), level=0.75, linetype=3))
+  #  geom_point(data=data.phfo, aes(m1,))
+    geom_path(data=ridge_site, aes(d.1., d.2.))+
+    stat_ellipse(data=phfocc_site, aes(PC1,PC2,colour=Population.Code), linetype=4)+
+    stat_ellipse(data=phfocc_site, aes(PC1,PC2,colour=Population.Code), level=0.85, linetype=5)+
+    stat_ellipse(data=phfocc_site, aes(PC1,PC2,colour=Population.Code), level=0.75, linetype=4))
 }
 
 
@@ -197,7 +202,8 @@ ggplot(ridge, aes(alfa, pdf, colour = site))+
 ```
 
 
-Tolerance ellipses and corresponding beta values for various points along the ridgeline manifold.  
+Tolerance ellipses and corresponding beta values for various points along the ridgeline manifold.    
+using 95% confidence  
 ```{r}
 TolEll <- apply(df, 2, function(site){
   p<-2
@@ -331,7 +337,10 @@ ggplot()+
 ```
 
 
-
+Maybe want to call them by County name instead?    
+then gina-gleneae would be Grand   
+formosula would be Jackson   
+scullyi <- Larimer   
 ```{r}
 data <- phfocc
 #Assign codes to the groups to be compared
@@ -442,7 +451,8 @@ beta_vector_SPB<-append(beta_vector_SPB, beta_or_chi_probability_SPB, after=leng
                 cex.axis=1, lwd=2)
   
   #Plot the value of beta at various points along the ridgeline manifold,
-  #and an horizontal dashed line at beta=0.9 (=a possible a priori cutoff value of 0.1); change according to cutoff value defined a priori (see Wiens and Servedio 2000).
+  #and an horizontal dashed line at beta=0.9 (=a possible a priori cutoff value of 0.1); change according to cutoff value defined a priori (see Wiens and Servedio 2000).  
+  #changed to 0.85 (a priori cutoff of 0.15)
   plot2 <- recordPlot()
 
   plot(alfa[2:1000], beta_vector_SPA, type="l", col="black", ylim=c(0,1), lwd=2,
@@ -461,11 +471,10 @@ beta_vector_SPB<-append(beta_vector_SPB, beta_or_chi_probability_SPB, after=leng
   list(plot1, plot2, plot3)
 }
 
+
+
 ```
 
-not working!! yargggg
-
-maybe a do.call(tiff(...))
 
 apply(df, 2, function(site){
 tiff(paste("Q:/Research/Lab/Projects/Phacelia formosula/R code/R images/RidgelineManifold",
@@ -514,7 +523,8 @@ summary(pa)
 
 ```
 
-Check for zero distance between points
+Check for zero distance between points   
+There are several points that are identical (see below from "geoloc_ph <-")
 ```{r}
 
 plot(phfocc$long,phfocc$lat,  cex=1.5)
@@ -526,7 +536,7 @@ inspect_coor<-which(d==0, arr.ind=T)
 nrow(inspect_coor)
 (nrow(inspect_coor)-n_coor)/2 #25
 
-inspect_coor
+inspect_coor #need to jitter to move points enough to get rid of identical locaitons
 
 # move the points just a bit to get unique points per collection
 sortphfo <- phfocc[ order(phfocc$long, phfocc$lat),]
@@ -535,54 +545,69 @@ needtochange <- sames$values[sames$lengths > 1]
 
 data.frame(from = phfocc$long[paste(needtochange, sep="|") %in% phfocc$long],
            to = jitter(phfocc$long[paste(needtochange, sep="|") %in% phfocc$long], 
-                       amount = 0.00009))
+                       amount = 0.00009)) #showing rounded numbers or really only that exact?
 
-phfocc$long[paste(needtochange, sep="|") %in% phfocc$long] <- jitter(phfocc$long[paste(needtochange, sep="|") %in% phfocc$long], 
-                       amount = 0.00009)
+phfocc$long[paste(needtochange, sep="|") %in% phfocc$long] <-
+  jitter(phfocc$long[paste(needtochange, sep="|") %in% phfocc$long], 
+         amount = 0.00009)
 
 
 data <- phfocc
+
+ggplot(data, aes(long,lat,colour=Population.Code))+
+  geom_point()+
+  theme_bw()
+
+ggmap(get_map(c(-107,40,-105.5,41)))+
+  geom_point(data=data, aes(long,lat,colour=Population.Code,shape=Population.Code))
+
+table(phfocc$Population.Code)
+
+#phfocc[phfocc$lat > 40.8,] #BR30 is closer to California Gulch, no morphological data was collected from that populaiton
+```
+Use these to create an RDA function
+```{r}
+pops
+head(data) #same as phfocc
+table(phfocc$Population.Code)
 ```
 
 ```{r}
-
-RDA <- function(pop1, pop2){
+RDA <- function(pop1, pop2){ #input numbers: 1=TC, 2=BR, 3=RN, 4=FC, 5=AS
   #Run first RDA to detrend original response variables (PC1, PC2) using geographic coordinates as explanatory variables.
   #Define response variables.
-  data_PC1<-data$PC1[data$Population.Code==pops[pop1] | 
-                       data$Population.Code==pops[pop2]]
-  data_PC2<-data$PC2[data$Population.Code==pops[pop1] | 
-                       data$Population.Code==pops[pop2]]
-  #Define explanatory variables.
-  X<-data$long[data$Population.Code==pops[pop1] | 
-                       data$Population.Code==pops[pop2]]
-  Y<-data$lat[data$Population.Code==pops[pop1] | 
-                       data$Population.Code==pops[pop2]]
-  coor <- cbind(X,Y)
-  n_coor<-nrow(phfocc[data$Population.Code==pops[pop1] | 
-                       data$Population.Code==pops[pop2],])
+  twopops <- data[data$Population.Code %in% c(paste(pops[pop1]),
+                                              paste(pops[pop2])),]
+  data_PC1<-twopops$PC1
+  data_PC2<-twopops$PC2
   
-  d <- as.matrix(dist(phfocc[data$Population.Code==pops[pop1] | 
-                       data$Population.Code==pops[pop2],
-                       c("long","lat")]))
+  #Define explanatory variables.
+  X <- twopops$long
+  Y <- twopops$lat
+  coor <- cbind(twopops$long,twopops$lat)
+  n_coor<-nrow(twopops)
+  d <- as.matrix(dist(twopops[,c("long","lat")]))
   
   #Define the formula for RDA.
   b<-c("X","Y")
   formula_det<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", 
                                 paste(b, collapse= "+")))
+  
   #Run and plot RDA and test significance by permutation.
   rda_det_model<-rda(formula_det)
-  plot(rda_det_model)
+  
+  rda_det_model$CCA
   anovaresult <- anova(rda_det_model, alpha=0.05, 
-                       beta=0.01, step=100, perm.max=9999) #significant!
+                       beta=0.01, step=100, perm.max=9999) #parameters same as appendix
   
   #If (and only if) there is a siginificant linear trend, run the next script line
   #to extract residuals.
-  ifanova <- if(anovaresult$`Pr(>F)`[1] < 0.05) {
+  if(anovaresult$`Pr(>F)`[1] < 0.05) {
     det_residuals<-residuals(rda_det_model)
-    det_residuals
-  }
+    }
   
+  #Calculate spatial eigenvalues and eigenvectors.
+  #See Dormann et al. (2007) for details.
   mst <- spantree(d)
   plot(coor)
   lines(mst, data.frame(X,Y))
@@ -614,11 +639,15 @@ RDA <- function(pop1, pop2){
        paste("interactions[,", c(1:n_pos_eivec), "]", sep=""))
   
   #If there is no significant linear trend in first RDA, then run next script line to use original PCA axes as response variables.
+  if(anovaresult$`Pr(>F)`[1] >= 0.05){
   formula1<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", 
                              paste(a, collapse= "+")))
+  }
   
   #If there was a significant linear trend in  first RDA, then run the next script line to use residuals as response variables.
+  if(anovaresult$`Pr(>F)`[1] < 0.05){
   formula1<-as.formula(paste("det_residuals ~ ", paste(a, collapse= "+")))
+  }
   
   #Run and plot RDA, and test significance of different terms by permutation.
   rda_model1<-rda(formula1)
@@ -635,7 +664,8 @@ RDA <- function(pop1, pop2){
   
   #If there is no significant linear trend in first RDA, then run next script line to use original PCA axes as response variables.
 
-  if(rda1$`Pr(>F)`[3] >= 0.05){
+#  if(rda1$`Pr(>F)`[3] >= 0.05){ #Why signficance for the dummy variable? Do you want for any? interactions included? So maybe min of them?
+  if(min(rda1$'Pr(>F)', na.rm = TRUE) >= 0.05){  
     formula2<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", 
                                paste(d, collapse= "+")))
     formula3<-as.formula(paste("cbind(data_PC1,data_PC2) ~ ", 
@@ -644,30 +674,34 @@ RDA <- function(pop1, pop2){
     
     #If there was a significant linear trend in  first RDA, then run the next script line to use residuals as response variables.
   
-  if(rda1$`Pr(>F)`[3] < 0.05){
+  if(min(rda1$`Pr(>F)`, na.rm=TRUE) < 0.05){
     formula2<-as.formula(paste("det_residuals ~ ", paste(d, collapse= "+")))
     formula3<-as.formula(paste("det_residuals ~ ", paste(e, collapse= "+")))
   }
     
-    #Update formula 2 or 3 according to simplification of rda_model
+    #Update formula 2 or 3 according to simplification of rda_model - according to what?
+  formula2a<-update(formula2, ~.-interactions[,1])
   formula3a<-update(formula3, ~.-interactions[,1])
-  formula3a
 
   #calculate adjusted R-squared.
-  variance_explained<-varpart(det_residuals, formula2, formula3)
-  variance_explained
-
-  
+  variance_explained<-varpart(det_residuals, formula2a, formula3a)
   
   list(Sites = cbind(pops[pop1],pops[pop2]),
-       RDAPlot = rda_det_model, 
+       RDAPlot = rda_det_model,  #This can be plotted, plot()
        anova = anovaresult, 
-       residuals = ifanova,
+       residuals = det_residuals,
        var_ex = variance_explained)
 }
 
 
 ```
+
+
+```{r}
+ASTC <- RDA(1,5) #Should be AS and TC
+ASTC[[3]]
+```
+
 
 ```{r}
 numdf <- combn(1:5,2)
