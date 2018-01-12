@@ -24,6 +24,8 @@ library(Imap)
 library(wordcloud)
 library(MASS)
 library(adegenet)
+library(pegas)
+library(ape)
 library(ade4)
 library(ggmap)
 library(vegan)
@@ -54,6 +56,12 @@ ph.dist.UTM <- SpatialPoints(ph.dist[,c("Easting","Northing")],
                         proj4string = CRS("+proj=utm +zone=13 +datum=NAD83"))
 ph.dist.LatLon <- spTransform(ph.dist.UTM, CRS("+proj=longlat +datum=WGS84"))
 ph.dist <- data.frame(ph.dist,ph.dist.LatLon)
+
+Dgeo <- spatialdist.noTC
+#These are just populations, not individuals
+spatialdist.noTC <- dist(ph.dist[-15,3:4]) #exclude Troublesome Creek
+spatialdist.TC <- dist(ph.dist[,3:4])
+# from DAPC and <http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>
 
 #what?
 ggmap(get_map(c(-107,40.25,-105.25,41)))+
@@ -115,40 +123,6 @@ phall@other$xy <- include.ind[,c("lon","lat")]
 nrow(include.ind[-grep("TC",include.ind$NAME),c("lon","lat")]) #401?! Should be 395 to match ph1, 6 individuals are funny!
 ```
 
-
-
-
-```{r}
-
-
-ph1 #without TC
-phall #with TC 
-
-ph.genepop <- genind2genpop(ph1)
-tab(ph.genepop)
-phall.genepop <- genind2genpop(phall)
-tab(phall.genepop)
-
-spatialdist.noTC <- dist(ph.dist[-15,3:4]) #exclude Troublesome Creek
-spatialdist.TC <- dist(ph.dist[,3:4])
-# from DAPC and <http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>
-#genind to genpop
-ph.genepop #no TC
-phall.genepop #with TC
-
-### without TC
-Dgen <- dist.genpop(ph.genepop,method=2)
-Dgeo <- spatialdist.noTC
-ibd <- mantel.randtest(Dgen,Dgeo) #repeat this for a distance matrix of climate variables! climate envelope
-ibd
-plot(ibd)
-
-plot(Dgeo,Dgen)
-abline(lm(Dgen~Dgeo), col="red")
-```
-
-
-
 ```{r}
 dens <- kde2d(Dgeo,Dgen, n = 300)
 myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
@@ -195,7 +169,6 @@ ggmap(get_map(c(-107,40.5,-105.5,41)))+
   geom_point(data=latlonphfo, aes(Easting.1,Northing.1,colour=Population))
 ```
 
-
 ```{r}  
 head(phall$pop)
 head(phfo.gen)
@@ -241,9 +214,6 @@ ph.dist$Population
 ```
 
 
-
-
-
 #Mantel test    
 ##2018.01.12_updates  
         - want to make PCA of soils and climate for distance matric of environment, compare to distance matrix of genetic    
@@ -263,12 +233,78 @@ vi - calcuate r^2 assess signficantion using 1000 permutations
 <https://github.com/rforge/sedar/tree/master/pkg> 
 both PCNM and packfor    
 <http://dr-k-lo.blogspot.com/2012/04/how-to-do-mantel-test-in-r.html>     
-```{r}
+
+<http://popgen.nescent.org/2015-05-18-Dist-SNP.html#section-2.-individual-genetic-distance-euclidean-distance-dist-adegenet> 
+ph1 #without TC    
+phall #with TC     
+```{r}  
+#by populaiton, not by individual... oh, because that's how you get distance, right?
+ph.genepop <- genind2genpop(ph1)
+#tab(ph.genepop)
+phall.genepop <- genind2genpop(phall) #genind has 431 indiviudals, down to the 15 populaitons
+#tab(phall.genepop)
+
+ph.genepop #no TC, 14 populations
+phall.genepop #with TC, 15 populaitons
+
+### TC in = phall.genpop
 #goegraphic distance matrix
-geo <- distm(include.ind[,c("lon","lat")])
-gen <- 
+Dgeo <- distm(include.ind[,c("lon","lat")])
+is.euclid(dist(include.ind[,c("lon","lat")]))
+
+#1 = Nei's distance (not Euclidean)
+#Dgen <- dist.genpop(phall.genepop,method=1) #first time did 2 which is Angular or Edwards'; 1=Nei's
+Dgen <- dist(phall@tab, method="euclidean")
+
+hist(Dgen)
+
+#.randtest = in C; .rtest = in R
+ibd <- mantel.randtest(Dgen,as.dist(Dgeo)) 
+#repeat this for a distance matrix of climate variables! climate envelope
+ibd
+plot(ibd)
+
+plot(Dgeo,Dgen)
+abline(lm(Dgen~Dgeo), col="red")
+
+distgenEUCL <- dist(phall, method = "euclidean", diag = FALSE, upper = FALSE, p = 2)
+hist(distgenEUCL)
+
+# loci with at least one sample missing
+phall.loci <- genind2loci(phall)
+distgenDIFF <- dist.gene(phall.loci, method="pairwise", pairwise.deletion=FALSE, variance=FALSE)
+hist(distgenDIFF)
+
+#Percent missing data per population
+missing_data <- info_table(phall, type="missing")
+sum(missing_data["Total",-13]>0) #10
+barplot(missing_data["Total",-13], xlab="Locus", ylab="Percent Missing")
+```
+Keep loci even if one missing value
+```{r}
+distgenDIFF <- dist.gene(phall.loci, method="pairwise", pairwise.deletion = TRUE, variance = FALSE)
+hist(distgenDIFF)
+
 
 ```
+
+Number of allelic differences between two individuals diss.dist from poppr    
+```{r}
+distgenDiSS <- diss.dist(phall, percent=FALSE, mat=FALSE)
+hist(distgenDiSS)
+
+```
+Compare how different genetic distances deal with missing data and which might want to use in Mantel.test   
+```{r}
+boxplot(distgenEUCL,distgenDIFF,distgenDiSS)
+```
+
+Maybe not the euclidian one, Nei's is not. So the second one? 
+```{r}
+
+
+```
+
 
 
 soils <https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/?cid=nrcs142p2_053627>
