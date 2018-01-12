@@ -26,6 +26,15 @@ library(MASS)
 library(adegenet)
 library(ade4)
 library(ggmap)
+library(vegan)
+#install.packages("PCNM") # not avaliable for 3.3.1, a funciton in vegan?
+library(boot)
+#install_git("rforge/sedar/pkg/AEM")
+#install_github("rforge/sedar/pkg/PCNM")
+library(ecodist)
+library(geosphere)
+
+
 
 ```
 
@@ -52,15 +61,65 @@ ggmap(get_map(c(-107,40.25,-105.25,41)))+
 
 ```
 
-
-
+spatial Analysis of principal components (sPCA) complements classical PCA retrieving non-trivial spatial genetic patterns   
 ```{r}
+#import genind object
 # Genepop input file without PhGi (TC)
 ph1 <- read.genepop("Q:/Research/Lab/Projects/Phacelia formosula/Phfo_GenePop_FinalRISERgenpop.gen")
 # Genepop input file with PhGi (TC)
 phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser/Genepop/PhfoAllGenePop_13Dec2016.gen")
+#phall <- read.genepop("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/PhfoAllGenePop_13Dec2016.gen") #also here
 
-#phall <- read.genepop("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/PhfoAllGenePop_13Dec2016.gen")
+#Which individuals were kept? From NAME formated as HN-01...
+gen.ind <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia microsatellite data/GenAlEx/Phfo_GENALEX truncated data_12-18-2014_reformat_medl.csv")
+
+sum(table(gen.ind$Population)) #431 individuals
+nrow(ph1@tab) #395 (without TC)
+nrow(phall@tab) #431 
+
+#Can store spatial informaiton in @other$xy  
+# Location information for each individual under Northing/Easting (need lat/lon) for individuals as $Code AN... and $Ind. 1:30 
+phfo.gen <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS data 2016_all.csv")
+head(phfo.gen)
+head(gen.ind) #need code as HN-01 and so on
+
+#Ha ha! get all the individuals into a two digit string
+formatC(phfo.gen$Ind., width=2, flag="0")
+
+#Do the codes from gen.ind and phall match? Nope. gen.ind$NAME is a factor
+table(sapply(as.character(gen.ind$NAME), function(code){
+  unlist(strsplit(code, "-"))[1]
+  }))
+table(phfo.gen$Code)
+
+gen.ind$NAME <- as.character(gen.ind$NAME)
+gen.ind$NAME <- gsub("B","BR",gen.ind$NAME)
+gen.ind$NAME <- gsub("F","FC",gen.ind$NAME)
+gen.ind$NAME <- gsub("T","TC",gen.ind$NAME)
+
+#Make $NAME match for both tables
+phfo.gen$NAME <- paste(phfo.gen$Code,"-",formatC(phfo.gen$Ind., width=2, flag="0"),
+                       sep="")
+
+#Convert phfo.gen$Easting and $Northing to lat/lon
+phfo.gen.UTM <- SpatialPoints(phfo.gen[,c("Easting","Northing")],
+                        proj4string = CRS("+proj=utm +zone=13 +datum=NAD83"))
+phfo.gen.LatLon <- spTransform(phfo.gen.UTM, CRS("+proj=longlat +datum=WGS84"))
+phfo.gen <- data.frame(phfo.gen,phfo.gen.LatLon)
+names(phfo.gen) <- c(names(phfo.gen)[-c((length(phfo.gen)-1):length(phfo.gen))],"lon","lat")
+
+#Want XY coordinates from phfo.gen that are individuals found in gen.ind
+include.ind <- merge(phfo.gen,gen.ind, by="NAME")
+phall@other$xy <- include.ind[,c("lon","lat")]
+#ph1@other$xy <- include.ind[!grep("TC",include.ind$NAME),c("lon","lat")]
+nrow(include.ind[-grep("TC",include.ind$NAME),c("lon","lat")]) #401?! Should be 395 to match ph1, 6 individuals are funny!
+```
+
+
+
+
+```{r}
+
 
 ph1 #without TC
 phall #with TC 
@@ -88,7 +147,7 @@ plot(Dgeo,Dgen)
 abline(lm(Dgen~Dgeo), col="red")
 ```
 
-spatial Analysis of principal components (sPCA) complements classical PCA retrieving non-trivial spatial genetic patterns
+
 
 ```{r}
 dens <- kde2d(Dgeo,Dgen, n = 300)
@@ -123,8 +182,6 @@ title("Isolation by distance plot")
 plot(Dgeo.tc,Dgen.tc)
 
 ph.dist
-phfo.gen <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS data 2016_all.csv")
-#ph1@other <- 
 
 #Convert the Northing/Easting to lat/long
 ptsutm <- SpatialPoints(phfo.gen[,c("Easting","Northing")],
@@ -184,6 +241,12 @@ ph.dist$Population
 ```
 
 
+
+
+
+#Mantel test    
+##2018.01.12_updates  
+        - want to make PCA of soils and climate for distance matric of environment, compare to distance matrix of genetic    
 ape
 ade4
 
@@ -198,23 +261,12 @@ iv - predictors are spatial eigenfunctions (distance-based Moran's eigenvector m
 v - forward selection to reduce number of dbMEMs (Blanchet et al. 2008)
 vi - calcuate r^2 assess signficantion using 1000 permutations   
 <https://github.com/rforge/sedar/tree/master/pkg> 
-both PCNM and packfor
+both PCNM and packfor    
+<http://dr-k-lo.blogspot.com/2012/04/how-to-do-mantel-test-in-r.html>     
 ```{r}
-library(devtools)
-#install.packages("vegan")
-#install_github("vegandevs/vegan")
-library(vegan)
-#install.packages("PCNM") # not avaliable for 3.3.1, a funciton in vegan?
-?pcnm
-library(boot)
-?packfor
-#install_git("rforge/sedar/pkg/AEM")
-#install_github("rforge/sedar/pkg/PCNM")
-
-#install.packages("ecodist")
-library(ecodist)
-
-
+#goegraphic distance matrix
+geo <- distm(include.ind[,c("lon","lat")])
+gen <- 
 
 ```
 
