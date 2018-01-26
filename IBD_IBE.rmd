@@ -39,6 +39,7 @@ library(boot)
 #install_github("rforge/sedar/pkg/PCNM")
 library(ecodist)
 library(geosphere)
+library(poppr)
 
 
 
@@ -74,14 +75,18 @@ ggmap(get_map(c(-107,40.25,-105.25,41)))+
 ```
 
 spatial Analysis of principal components (sPCA) complements classical PCA retrieving non-trivial spatial genetic patterns   
+Spatial and genetic data per individual -> don't want by individual Jan 26, 2018  
+  - Thibaut in his vignette for adegenet says you can do isotlation by 
 ```{r}
 #import genind object
 # Genepop input file without PhGi (TC)
 #ph1 <- read.genepop("Q:/Research/Lab/Projects/Phacelia formosula/Phfo_GenePop_FinalRISERgenpop.gen")
+
 # Genepop input file with PhGi (TC)
 phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser/Genepop/PhfoAllGenePop_13Dec2016.gen")
 #phall <- read.genepop("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/PhfoAllGenePop_13Dec2016.gen") #also here
 ph1 <- phall[popNames(phall) != "T"]
+# Where are the individual information kept, which numbered individuals are kept? Maybe I dont' want? I want to see by distance among populaitons and with populaitons is the genetic distance compared to one spatial distance? Can't get genetic diversity Fst or whatnot from individuals, need the whole 'populaiton' 
 
 #Which individuals were kept? From NAME formated as HN-01...
 gen.ind <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia microsatellite data/GenAlEx/Phfo_GENALEX truncated data_12-18-2014_reformat_medl.csv")
@@ -128,7 +133,15 @@ ph1@other$xy <- include.ind[-grep("TC",include.ind$NAME),c("lon","lat")]
 nrow(include.ind[-grep("TC",include.ind$NAME),c("lon","lat")]) #401?! Should be 395 to match ph1, 6 individuals are funny!
 ```
 
-##COME BACK to this later! needs to move
+Get distance matrix for genetic distance by population (15)
+```{r}
+
+
+```
+
+
+#Isolation by distance   
+Can be by individual or by populaiton. I have an issue with matching the individuals with their locations. 431 individuals with genetic data and locations. When I try to remove TC I get 401 individuals but should be 395 indiviudals without TC???
 ```{r}
 dens <- kde2d(Dgeo,Dgen, n = 300)
 myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
@@ -188,6 +201,7 @@ legend("bottomright",leg=unique(ph1$pop),pch=unique(as.numeric(ph1$pop))) #this 
 
 #convert Northing Easting to lat long
 ```{r}
+#Just the 15 populaitons, not individuals
 ph.ll <- spTransform(SpatialPoints(cbind(ph.dist$Easting,ph.dist$Northing),
                           proj4string = CRS("+proj=utm +zone=13 + datus=NAD83")),
             CRS("+proj=longlat +datum=WGS84"))
@@ -294,7 +308,7 @@ hist(distgenDiSS)
 ```
 Compare how different genetic distances deal with missing data and which might want to use in Mantel.test   
 ```{r}
-boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populaitons, not individuals
+boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
 ```
 
 Maybe not the euclidian one, Nei's is not. So the second one? 
@@ -331,22 +345,32 @@ Once I have an environmental distance matrix: mantel.partial() - pearson, partia
 temp <- phall@pop
 temp <- as.numeric(temp)
 
-temp.sp <- temp
+temp.sp <- temp #Did the order change???
 #AN,AS,BR,CG,D,  P,R,RN,   V, WA, WS  <- PhFo 1:5,9:11,13:15
 #FC,HN,HS <- PhSc   6:8
 #TC <- PhGi 12
 temp.sp[temp.sp %in% c(1:5,9:11,13:15)] <- 1
 temp.sp[temp.sp %in% c(6:8)] <- 2
 temp.sp[temp.sp==12] <- 3
+
+#missed the changing to FC and TC... ?? 
+temp.sp2 <- temp
+temp.sp2[temp.sp2 %in% c(1:3)] <- 2 #Larimer
+temp.sp2[temp.sp2 %in% c(4:14)] <- 1 #Jackson
+temp.sp2[temp.sp2 == 15] <- 3 #Grand
   
-  
-plot(phall$other$xy, pch=temp, cex=1.5) #looks wrong somehow...
+plot(phall$other$xy, pch=temp, cex=1.5) #looks wrong somehow... points don't match with stated populations
+#include.ind which is merged phfo.gen and gen.ind must be in different order than phall
+pop(phall)
+include.ind$Code
+
+plot(phall$other$xy, pch=)
 
 D <- dist(phall$tab)
 gab <- chooseCN(phall$other$xy,ask=FALSE,type=5)
 
 
-# by species
+# by species, something in Jackson is listed as phsc
 plot(phall$other$xy, pch=temp.sp, cex=1.5)
 D.sp <- dist(phall$tab) #here want to group by species? no? 
 ```
