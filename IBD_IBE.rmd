@@ -82,52 +82,61 @@ Spatial and genetic data per individual -> don't want by individual Jan 26, 2018
 #phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser/Genepop/PhfoAllGenePop_13Dec2016.gen")
 phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/GenAlExAnalyses_Nov2017/Genpop_PhfoData_Nov2017.gen")
 
+table(phall@pop)
+#Change to match T -> TC; F -> FC; B -> BR
+currentlevels <- levels(phall@pop)
+currentlevels[currentlevels=="T"] <- "TC"
+currentlevels[currentlevels=="F"] <- "FC"
+currentlevels[currentlevels=="B"] <- "BR"
+levels(phall@pop) <- currentlevels
 
-ph1 <- phall[popNames(phall) != "T"] #403 individuals
-
-#Which individuals were kept? From NAME formated as HN-01...
-gen.ind <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia microsatellite data/GenAlEx/Phfo_GENALEX truncated data_12-18-2014_reformat_medl.csv")
-
-sum(table(gen.ind$Population)) #431 individuals
-nrow(ph1@tab) #403 (without TC)
-nrow(phall@tab) #431 
+ph1 <- phall[phall@pop != "TC"] #395 individuals
+table(ph1@pop)
 
 #Can store spatial informaiton in @other$xy  
 # Location information for each individual under Northing/Easting (need lat/lon) for individuals as $Code AN... and $Ind. 1:30 
 phfo.gen <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS data 2016_all.csv")
 nrow(phfo.gen) #451 - some individuals were thrown out for the genetic data. 
-head(gen.ind) #need code as HN-01 and so on
-
-#Ha ha! get all the individuals into a two digit string
-formatC(phfo.gen$Ind., width=2, flag="0")
-
-#Do the codes from gen.ind and phall match? Nope. gen.ind$NAME is a factor
-table(sapply(as.character(gen.ind$NAME), function(code){
-  unlist(strsplit(code, "-"))[1]
-  }))
 table(phfo.gen$Code)
+table(phfo.gen$Code[phfo.gen$DNA.Vial.in.Freezer...9.12.2016.inventory. == "YES"])
+#Still match these locaitons with the individuals from phall
+table(phall@pop,phall@tab)
 
-gen.ind$NAME <- as.character(gen.ind$NAME)
-gen.ind$NAME <- gsub("B","BR",gen.ind$NAME)
-gen.ind$NAME <- gsub("F","FC",gen.ind$NAME)
-gen.ind$NAME <- gsub("T","TC",gen.ind$NAME)
+phfo.indloc <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/GenAlExAnalyses_Nov2017/LatLon_PhfoData_Nov2017.csv")
 
-#Make $NAME match for both tables
-phfo.gen$NAME <- paste(phfo.gen$Code,"-",formatC(phfo.gen$Ind., width=2, flag="0"),
-                       sep="")
+table(phfo.indloc$SimpleCode)
+curlev <- levels(phfo.indloc$SimpleCode)
+curlev[curlev=="T"] <- "TC"
+curlev[curlev=="F"] <- "FC"
+curlev[curlev=="B"] <- "BR"
+levels(phfo.indloc$SimpleCode) <- curlev
 
-#Convert phfo.gen$Easting and $Northing to lat/lon
-phfo.gen.UTM <- SpatialPoints(phfo.gen[,c("Easting","Northing")],
+
+#Morphology  
+phfo.loc <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/geoloc_ph.csv")
+table(phfo.loc$Population.Code)
+
+
+#phall are individuals from phfo.indloc
+# So take the SimpleCode and IndNum from phfo.indloc and the Northing and Easting from phfo.gen matching Code and Ind.
+# First get the names to match from 
+phfo.UTM <- merge(phfo.gen,phfo.indloc[,c(1,3:4)],
+                  by.x=c("Code","Ind."),by.y=c("SimpleCode","IndNum"))
+table(phfo.UTM$Code)
+sum(table(phfo.UTM$Code)) #425
+
+
+#Convert phfo.UTM$Easting and $Northing to lat/lon
+phfo.UTM.SP <- SpatialPoints(phfo.UTM[,c("Easting","Northing")],
                         proj4string = CRS("+proj=utm +zone=13 +datum=NAD83"))
-phfo.gen.LatLon <- spTransform(phfo.gen.UTM, CRS("+proj=longlat +datum=WGS84"))
-phfo.gen <- data.frame(phfo.gen,phfo.gen.LatLon)
-names(phfo.gen) <- c(names(phfo.gen)[-c((length(phfo.gen)-1):length(phfo.gen))],"lon","lat")
+phfo.LatLon <- spTransform(phfo.UTM.SP, CRS("+proj=longlat +datum=WGS84"))
+phfo.UTM <- data.frame(phfo.UTM,phfo.LatLon)
+names(phfo.UTM) <- c(names(phfo.UTM)[-c((length(phfo.UTM)-1):length(phfo.UTM))],"lon","lat")
 
 #Want XY coordinates from phfo.gen that are individuals found in gen.ind
-include.ind <- merge(phfo.gen,gen.ind, by="NAME") #431
-phall@other$xy <- include.ind[,c("lon","lat")]
-ph1@other$xy <- include.ind[-grep("TC",include.ind$NAME),c("lon","lat")]
-nrow(include.ind[-grep("TC",include.ind$NAME),c("lon","lat")]) #401?! Should be 403 to match ph1, 2 individuals are funny! Troublesome Creek has some odd notes about spilling and x2 viles
+phall@other$xy <- phfo.UTM[,c("lon","lat")]
+ph1@other$xy <- phfo.UTM[-grep("TC",phfo.UTM$Code),c("lon","lat")]
+nrow(phall@other$xy) #425
 ```
 
 Get distance matrix for genetic distance by population (15)
@@ -136,7 +145,7 @@ Dgen <- dist.genpop(genind2genpop(phall), method=1) #1: Nei's 2: Angular Edward'
 Dgenind <- dist(phall@tab) #euclidean
 Dgenind.maximum <- dist(phall@tab, method="max")
 Dgeo <- dist(phall$other$xy)
-#These are the genetic and geographic distance for 431 individuals
+#These are the genetic and geographic distance for 425 individuals
 ibd <- mantel.randtest(Dgenind,Dgeo) #OH dear, Dgen is 15 populations, Dgeo are all individuals
 ibd
 
@@ -165,22 +174,22 @@ title("Isolation by distance plot")
 ```
 
 #Isolation by distance   
-Can be by individual or by populaiton. I have an issue with matching the individuals with their locations. 431 individuals with genetic data and locations. When I try to remove TC I get 401 individuals but should be 395 indiviudals without TC???
 ```{r}
-dens <- kde2d(Dgeo,Dgen, n = 300)
-myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
-plot(Dgeo, Dgen, pch=20,cex=.5)
-image(dens, col=transp(myPal(300),.7), add=TRUE)
-abline(lm(Dgen~Dgeo))
-title("Isolation by distance plot")
+## without TC Phacelia gina-glennea
+Dgenind.noTC <- dist(ph1@tab) #euclidean
+Dgenind.maximum.noTC <- dist(ph1@tab, method="max")
+Dgeo.noTC <- dist(ph1$other$xy)
+#These are the genetic and geographic distance for 425 individuals
+ibd.noTC <- mantel.randtest(Dgenind.noTC,Dgeo.noTC) #OH dear, Dgen is 15 populations, Dgeo are all individuals
+ibd.noTC
 
+plot(ibd.noTC)
 
-## with TC Phacelia gina-glennea
-Dgen.tc <- dist.genpop(phall.genepop, method=2)
-Dgeo.tc <- spatialdist.TC
-ibd.tc <- mantel.randtest(Dgen.tc,Dgeo.tc)
-plot(ibd.tc) # Isolation by distance is signficant
+ibdmax <- mantel.randtest(Dgeo,Dgenind.maximum)
+ibdmax
 
+#vegan version
+vegan::mantel(Dgeo,Dgenind, permutations = 9999)
 # 1. Classical IBD would result in continuous clines of genetic differentiation 
 # 2. distant and differentiated populations also results in this pattern. So...
 
@@ -217,9 +226,11 @@ ggmap(get_map(c(-107,40.5,-105.5,41)))+
 #### Monmonierâs algorithm to define genetic boundaries
 temp <- as.integer(ph1$pop)
 
-#temp <- as.numeric(as.character(temp))
-plot(ph1$other$xy,pch=temp,cex=1.5,xlab='x',ylab='y') #guess it's ok the numbers don't match?
-legend("bottomright",leg=unique(ph1$pop),pch=unique(as.numeric(ph1$pop))) #this is not right
+plot(ph1$other$xy,pch=temp,cex=1.5,xlab='x',ylab='y',
+     col=temp)
+legend("bottomright",leg=unique(ph1$pop)) 
+
+ggplot()
 
 ```
 
