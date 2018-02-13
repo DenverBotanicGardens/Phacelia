@@ -78,27 +78,24 @@ spatial Analysis of principal components (sPCA) complements classical PCA retrie
 Spatial and genetic data per individual -> don't want by individual Jan 26, 2018  
   - Thibaut in his vignette for adegenet says you can do isotlation by 
 ```{r}
-#import genind object
-# Genepop input file without PhGi (TC)
-#ph1 <- read.genepop("Q:/Research/Lab/Projects/Phacelia formosula/Phfo_GenePop_FinalRISERgenpop.gen")
+# Genepop input file with PhGi (TC) 431 individuals
+#phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser/Genepop/PhfoAllGenePop_13Dec2016.gen")
+phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/GenAlExAnalyses_Nov2017/Genpop_PhfoData_Nov2017.gen")
 
-# Genepop input file with PhGi (TC)
-phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser/Genepop/PhfoAllGenePop_13Dec2016.gen")
-#phall <- read.genepop("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/PhfoAllGenePop_13Dec2016.gen") #also here
-ph1 <- phall[popNames(phall) != "T"]
-# Where are the individual information kept, which numbered individuals are kept? Maybe I dont' want? I want to see by distance among populaitons and with populaitons is the genetic distance compared to one spatial distance? Can't get genetic diversity Fst or whatnot from individuals, need the whole 'populaiton' 
+
+ph1 <- phall[popNames(phall) != "T"] #403 individuals
 
 #Which individuals were kept? From NAME formated as HN-01...
 gen.ind <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia microsatellite data/GenAlEx/Phfo_GENALEX truncated data_12-18-2014_reformat_medl.csv")
 
 sum(table(gen.ind$Population)) #431 individuals
-nrow(ph1@tab) #395 (without TC)
+nrow(ph1@tab) #403 (without TC)
 nrow(phall@tab) #431 
 
 #Can store spatial informaiton in @other$xy  
 # Location information for each individual under Northing/Easting (need lat/lon) for individuals as $Code AN... and $Ind. 1:30 
 phfo.gen <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS data 2016_all.csv")
-head(phfo.gen)
+nrow(phfo.gen) #451 - some individuals were thrown out for the genetic data. 
 head(gen.ind) #need code as HN-01 and so on
 
 #Ha ha! get all the individuals into a two digit string
@@ -127,18 +124,45 @@ phfo.gen <- data.frame(phfo.gen,phfo.gen.LatLon)
 names(phfo.gen) <- c(names(phfo.gen)[-c((length(phfo.gen)-1):length(phfo.gen))],"lon","lat")
 
 #Want XY coordinates from phfo.gen that are individuals found in gen.ind
-include.ind <- merge(phfo.gen,gen.ind, by="NAME")
+include.ind <- merge(phfo.gen,gen.ind, by="NAME") #431
 phall@other$xy <- include.ind[,c("lon","lat")]
 ph1@other$xy <- include.ind[-grep("TC",include.ind$NAME),c("lon","lat")]
-nrow(include.ind[-grep("TC",include.ind$NAME),c("lon","lat")]) #401?! Should be 395 to match ph1, 6 individuals are funny!
+nrow(include.ind[-grep("TC",include.ind$NAME),c("lon","lat")]) #401?! Should be 403 to match ph1, 2 individuals are funny! Troublesome Creek has some odd notes about spilling and x2 viles
 ```
 
 Get distance matrix for genetic distance by population (15)
 ```{r}
+Dgen <- dist.genpop(genind2genpop(phall), method=1) #1: Nei's 2: Angular Edward's Euclidean distance
+Dgenind <- dist(phall@tab) #euclidean
+Dgenind.maximum <- dist(phall@tab, method="max")
+Dgeo <- dist(phall$other$xy)
+#These are the genetic and geographic distance for 431 individuals
+ibd <- mantel.randtest(Dgenind,Dgeo) #OH dear, Dgen is 15 populations, Dgeo are all individuals
+ibd
 
+plot(ibd)
 
+ibdmax <- mantel.randtest(Dgeo,Dgenind.maximum)
+ibdmax
+
+#vegan version
+vegan::mantel(Dgeo,Dgenind, permutations = 9999)
 ```
 
+```{r}
+plot(Dgeo,Dgenind)
+abline(lm(Dgenind~Dgeo))
+
+summary(lm(Dgenind~Dgeo))
+```
+```{r}
+dens <-kde2d(Dgeo,Dgenind, n=300)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo, Dgenind, pch=20,cex=.5)
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind~Dgeo))
+title("Isolation by distance plot")
+```
 
 #Isolation by distance   
 Can be by individual or by populaiton. I have an issue with matching the individuals with their locations. 431 individuals with genetic data and locations. When I try to remove TC I get 401 individuals but should be 395 indiviudals without TC???
@@ -381,6 +405,18 @@ Example shows between two populations, maybe need to go with species, not popula
 
 mon1 <- monmonier(phall$other$xy,D,gab)
 ```
+
+```{r}
+jacksonsoils <- shapefile("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/Colorado/soil_co630/JacksonCnt_PhFo/wss_aoi_2018-01-30_12-01-12/spatial/soilmu_a_aoi.shp")
+
+plot(jacksonsoils)
+
+jacksonsoilscoll <- read.delim("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilsCollectionsJackson.txt", header=TRUE, sep=",")
+
+table(jacksonsoilscoll$MUSYM)
+table(jacksonsoilscoll$MUKEY)
+```
+
 
 soils <https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/?cid=nrcs142p2_053627>
 Data from USDA <http://websoilsurvey.nrcs.usda.gov/app/WebSoilSurvey.aspx>   
