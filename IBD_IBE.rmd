@@ -474,7 +474,43 @@ ph.ll <- spTransform(SpatialPoints(cbind(soils$EastingAll,soils$NorthingAll),
 ```
 
 ```{r}
+phall.genepop <- genind2genpop(phall)
+ boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
+ibd.ind <- mantel.randtest(Dgeo, distgenDIFF)
+ibd.ind
+> plot(ibd.ind)
+> 
+> plot(Dgeo, distgenDIFF)
+> abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
+> 
+> library(MASS)
+> dens <- kde2d(Dgeo,distgenDIFF, n=300)
 
+> save(mins.avg, file="P:/hackathon/Phacelia/mins_avg.rda")
+> save(maxs.avg, file="P:/hackathon/Phacelia/maxs_avg.rda")
+> save(ppt.avg, file="P:/hackathon/Phacelia/ppt_avg.rda")
+usa <- getData("GADM", country="USA", level=2)
+> colorado <- usa[usa$NAME_1 == "Colorado",]
+> counties <- c("Larimer","Jackson","Grand")
+> ph.counties <- colorado[colorado$NAME_2 %in% grep(paste(counties, collapse="|"),
++                                                   colorado$NAME_2, value=TRUE),]
+> ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
+> 
+> plot(bioclim.phfo[[1]])
+> points(phall[,c("lon","lat")])
+
+bio<-list()
+> for(i in 1:19){
++   bio[[i]] <- extract(bioclim.phfo[[i]], ph.dist[,c("Easting.1","Northing.1")])
++ }
+> filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
+> flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1))
+> 
+> shape <- list()
+> #Get all the soil layers I made
+> for(i in flnms){
++   shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
++ }
 ph.cols <- data.frame(coordinates(ph.ll),soils$Population,soils$Ind_Num)
 
 
@@ -591,15 +627,7 @@ ph.p <-data.frame(coordinates(ph.points))
 
 Bioclim data for Jackson, Larimer, and Grand counties
 ```{r}
-bioclim.jackson <- getData("worldclim", var='bio', res = 0.5, lon = -106, lat = 41)
-bioclim.grand <- getData("worldclim", var='bio', res = 0.5, lon = -106, lat = 40)
-bioclim.larimer <- getData("worldclim", var='bio', res = 0.5, lon = -105, lat = 41)
-
-
-bioclim.ph <- mosaic(bioclim.larimer,bioclim.grand,bioclim.jackson, fun=mean)
-
-plot(bioclim.ph$layer.1)
-points(ph.p)
+bioclim.phfo <- getData("worldclim", var='bio', res = 0.5, lon = -106, lat = 41)
 
 ggplot()+
   geom_path(data=ph.counties, aes(x=long, y=lat, group=group))+
