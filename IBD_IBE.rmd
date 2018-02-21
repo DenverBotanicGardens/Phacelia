@@ -46,7 +46,7 @@ library(poppr)
 ```
 
 Tutorials
-```{r}
+```{r, eval=FALSE}
 adegenetTutorial("spca")
 adegenetTutorial("dapc")
 
@@ -119,7 +119,6 @@ table(phfo.loc$Population.Code)
 
 #phall are individuals from phfo.indloc
 # So take the SimpleCode and IndNum from phfo.indloc and the Northing and Easting from phfo.gen matching Code and Ind.
-# First get the names to match from 
 phfo.UTM <- merge(phfo.gen,phfo.indloc[,c(1,3:4)],
                   by.x=c("Code","Ind."),by.y=c("SimpleCode","IndNum"))
 table(phfo.UTM$Code)
@@ -164,6 +163,7 @@ abline(lm(Dgenind~Dgeo))
 
 summary(lm(Dgenind~Dgeo))
 ```
+
 ```{r}
 dens <-kde2d(Dgeo,Dgenind, n=300)
 myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
@@ -307,6 +307,17 @@ ibd <- mantel.randtest(Dgen,Dgeo)
 #repeat this for a distance matrix of climate variables! climate envelope
 ibd
 plot(ibd)
+
+abline(lm(Dgenind~Dgeo))
+title("Isolation by distance plot")
+
+
+Dgenind.noTC <- dist(ph1@tab) #euclidean
+Dgenind.maximum.noTC <- dist(ph1@tab, method="max")
+Dgeo.noTC <- dist(ph1$other$xy)
+#These are the genetic and geographic distance for 425 individuals
+ibd.noTC <- mantel.randtest(Dgenind.noTC,Dgeo.noTC) #OH dear, Dgen is 15 populations, Dgeo are all individuals
+ibd.noTC
 ```
 
 
@@ -322,17 +333,20 @@ phall.loci <- genind2loci(phall)
 distgenDIFF <- dist.gene(phall.loci, method="pairwise", pairwise.deletion=FALSE, variance=FALSE)
 hist(distgenDIFF)
 
+op <- par(no.readonly = TRUE)
 #Percent missing data per population
 missing_data <- info_table(phall, type="missing")
 sum(missing_data["Total",-13]>0) #10
-barplot(missing_data["Total",-13], xlab="Locus", ylab="Percent Missing")
+boxplot(missing_data["Total",-13], horizontal=TRUE, xlab="Locus", ylab="Percent Missing")
+stripchart(missing_data["Total",-13][i],method="jitter")
+ rug(missing_data["Total",-13][i])
 ```
 Keep loci even if one missing value
 ```{r}
 distgenDIFF <- dist.gene(phall.loci, method="pairwise", pairwise.deletion = TRUE, variance = FALSE)
 hist(distgenDIFF)
 
-
+par(op)
 ```
 
 Number of allelic differences between two individuals diss.dist from poppr    
@@ -343,6 +357,7 @@ hist(distgenDiSS)
 ```
 Compare how different genetic distances deal with missing data and which might want to use in Mantel.test   
 ```{r}
+phall.genepop <- genind2genpop(phall)
 boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
 ```
 
@@ -361,7 +376,6 @@ abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
 ```
 Visualize density 
 ```{r}
-library(MASS)
 dens <- kde2d(Dgeo,distgenDIFF, n=300)
 myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
 plot(Dgeo, distgenDIFF, pch=20,cex=.5)
@@ -371,92 +385,14 @@ title("Isolation by distance plot")
 
 ```
 
-Monmonier's algorithm - genetic boundaries    
-find the path through the strongest genetic distances between heighbours   
-
-
-Once I have an environmental distance matrix: mantel.partial() - pearson, partial correlation conditioned on the thrid matrix    
-```{r}
-temp <- phall@pop
-temp <- as.numeric(temp)
-
-temp.sp <- temp #Did the order change???
-#AN,AS,BR,CG,D,  P,R,RN,   V, WA, WS  <- PhFo 1:5,9:11,13:15
-#FC,HN,HS <- PhSc   6:8
-#TC <- PhGi 12
-temp.sp[temp.sp %in% c(1:5,9:11,13:15)] <- 1
-temp.sp[temp.sp %in% c(6:8)] <- 2
-temp.sp[temp.sp==12] <- 3
-
-#missed the changing to FC and TC... ?? 
-temp.sp2 <- temp
-temp.sp2[temp.sp2 %in% c(1:3)] <- 2 #Larimer
-temp.sp2[temp.sp2 %in% c(4:14)] <- 1 #Jackson
-temp.sp2[temp.sp2 == 15] <- 3 #Grand
-  
-plot(phall$other$xy, pch=temp, cex=1.5) #looks wrong somehow... points don't match with stated populations
-#include.ind which is merged phfo.gen and gen.ind must be in different order than phall
-pop(phall)
-include.ind$Code
-
-plot(phall$other$xy, pch=)
-
-D <- dist(phall$tab)
-gab <- chooseCN(phall$other$xy,ask=FALSE,type=5)
-
-
-# by species, something in Jackson is listed as phsc
-plot(phall$other$xy, pch=temp.sp, cex=1.5)
-D.sp <- dist(phall$tab) #here want to group by species? no? 
-```
-
-Example shows between two populations, maybe need to go with species, not populations?
-```{r}
-
-
-mon1 <- monmonier(phall$other$xy,D,gab)
-```
-
-```{r}
-jacksonsoils <- shapefile("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/Colorado/soil_co630/JacksonCnt_PhFo/wss_aoi_2018-01-30_12-01-12/spatial/soilmu_a_aoi.shp")
-
-plot(jacksonsoils)
-
-jacksonsoilscoll <- read.delim("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilsCollectionsJackson.txt", header=TRUE, sep=",")
-
-table(jacksonsoilscoll$MUSYM)
-table(jacksonsoilscoll$MUKEY)
-```
-
 
 soils <https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/?cid=nrcs142p2_053627>
 Data from USDA <http://websoilsurvey.nrcs.usda.gov/app/WebSoilSurvey.aspx>   
  1. Analsis Tools -> Overlay -> Spatial Join 2. In spatial join dialog box: -Target features = Points -Join features = Polygons -Join Operation = Join one to one -Right click on 'yield' field in join feature field map, select properties, choose 'Maximum' as merge rule -Match option = Intersect 
 Try to get netCDF data for these points
-```{r}
-soils <- read.delim("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Walden_Phacelia/SoilsPerPoints.txt",
-                    sep = ",")
-
-head(soils)
-soils$Population <- gsub('[[:digit:]]+', '', soils$Comment)
-soils$Population[soils$Comment == " "] <- "TroublesomeCreek"
-unique(soils$Population)
-
-soils$Population[grep("WSE", soils$Population)] <- "WeatherStation"
-soils$Population[grep("Brownlee", soils$Population)] <- "Brownlee"
-soils$Population[grep("RNA", soils$Population)] <- "ResearchNaturalArea"
-soils$Population[grep("iamond", soils$Population)] <- "DiamondJNE"
-
-table(soils$Population)
-
-```
-
 
 Diniz-Filho et al 2013   
-```{r}
-library(raster)
-library(prism)
-
+```{r, eval=FALSE}
 options(prism.path = "Q:/Research/All_Projects_by_Species/Astragalus SPECIES/Astragalus_microcymbus/PRISM_asmiclimate")
 
 #Precipitation total, rain and snow
@@ -468,9 +404,6 @@ get_prism_monthlys(type="tmax", mon = 1:12, keepZip = FALSE, years = 1980:1993)
 #Minimum temperature (average)
 get_prism_monthlys(type="tmin", mon = 1:12, keepZip = FALSE, years = 1980:1993)
 
-ph.ll <- spTransform(SpatialPoints(cbind(soils$EastingAll,soils$NorthingAll),
-                                   proj4string = CRS("+proj=utm +zone=13 + datum=NAD83")),
-                     CRS("+proj=longlat +datum=WGS84"))
 ```
 
 ```{r}
@@ -478,41 +411,42 @@ phall.genepop <- genind2genpop(phall)
  boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
 ibd.ind <- mantel.randtest(Dgeo, distgenDIFF)
 ibd.ind
-> plot(ibd.ind)
-> 
-> plot(Dgeo, distgenDIFF)
-> abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
-> 
-> library(MASS)
-> dens <- kde2d(Dgeo,distgenDIFF, n=300)
+plot(ibd.ind)
 
-> save(mins.avg, file="P:/hackathon/Phacelia/mins_avg.rda")
-> save(maxs.avg, file="P:/hackathon/Phacelia/maxs_avg.rda")
-> save(ppt.avg, file="P:/hackathon/Phacelia/ppt_avg.rda")
+plot(Dgeo, distgenDIFF)
+abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
+
+library(MASS)
+dens <- kde2d(Dgeo,distgenDIFF, n=300)
+
 usa <- getData("GADM", country="USA", level=2)
-> colorado <- usa[usa$NAME_1 == "Colorado",]
-> counties <- c("Larimer","Jackson","Grand")
-> ph.counties <- colorado[colorado$NAME_2 %in% grep(paste(counties, collapse="|"),
-+                                                   colorado$NAME_2, value=TRUE),]
-> ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
-> 
-> plot(bioclim.phfo[[1]])
-> points(phall[,c("lon","lat")])
+colorado <- usa[usa$NAME_1 == "Colorado",]
+counties <- c("Larimer","Jackson","Grand")
+ph.counties <- colorado[colorado$NAME_2 %in% grep(paste(counties, collapse="|"),
+                                                 colorado$NAME_2, value=TRUE),]
+ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
+ 
+plot(bioclim.phfo[[1]])
+points(phall[,c("lon","lat")])
 
 bio<-list()
-> for(i in 1:19){
-+   bio[[i]] <- extract(bioclim.phfo[[i]], ph.dist[,c("Easting.1","Northing.1")])
-+ }
-> filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
-> flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1))
-> 
-> shape <- list()
-> #Get all the soil layers I made
-> for(i in flnms){
-+   shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
-+ }
-ph.cols <- data.frame(coordinates(ph.ll),soils$Population,soils$Ind_Num)
+for(i in 1:19){
+  bio[[i]] <- extract(bioclim.phfo[[i]], ph.dist[,c("Easting.1","Northing.1")])
+}
+filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
+flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1))
 
+shape <- list()
+#Get all the soil layers I made
+for(i in flnms){
+  shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
+  }
+
+```
+
+
+```{r}
+options(prism.path = "Q:/Research/All_Projects_by_Species/Astragalus SPECIES/Astragalus_microcymbus/PRISM_asmiclimate")
 
 maxs <- grep("tmax", ls_prism_data(absPath=TRUE)[,2])
 mins <- grep("tmin", ls_prism_data(absPath = TRUE)[,2])
@@ -520,25 +454,30 @@ ppt <- grep("ppt", ls_prism_data(absPath = TRUE)[,2])
 
 avgTemps.max <- lapply(maxs, function(x){
   rastertemps <- raster(ls_prism_data(absPath=TRUE)[x,2])
-  data.frame(data = extract(rastertemps, ph.cols[,c("coords.x1","coords.x2")]), 
+  data.frame(data = extract(rastertemps, phfo.UTM[,c("lon","lat")]),              
              date = ls_prism_data()[x,])
 })
 
 avgTemps.min <- lapply(mins, function(x){
   rastertemps <- raster(ls_prism_data(absPath=TRUE)[x,2])
-  data.frame(data = extract(rastertemps, ph.cols[,c("coords.x1","coords.x2")]), 
+    data.frame(data = extract(rastertemps, phfo.UTM[,c("lon","lat")]), 
              date = ls_prism_data()[x,])
 })
 
 avgPrecip <- lapply(ppt, function(x){
-  rastertemps <- raster(ls_prism_data(absPath=TRUE)[x,2])
-  data.frame(data = extract(rastertemps, ph.cols[,c("coords.x1","coords.x2")]), 
+  rastertemps <- raster(ls_prism_data(absPath=TRUE)[x,2])  
+  data.frame(data = extract(rastertemps, phfo.UTM[,c("lon","lat")]), 
              date = ls_prism_data()[x,])
 })
 
 mins.avg <- do.call(rbind, avgTemps.min)
 maxs.avg <- do.call(rbind, avgTemps.max)
 ppt.avg <- do.call(rbind, avgPrecip)
+
+
+save(mins.avg, file="P:/hackathon/Phacelia/mins_avg.rda")
+save(maxs.avg, file="P:/hackathon/Phacelia/maxs_avg.rda")
+save(ppt.avg, file="P:/hackathon/Phacelia/ppt_avg.rda")
 
 
 ```
