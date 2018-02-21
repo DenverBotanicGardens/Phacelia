@@ -33,10 +33,7 @@ library(ape)
 library(ade4)
 library(ggmap)
 library(vegan)
-#install.packages("PCNM") # not avaliable for 3.3.1, a funciton in vegan?
 library(boot)
-#install_git("rforge/sedar/pkg/AEM")
-#install_github("rforge/sedar/pkg/PCNM")
 library(ecodist)
 library(geosphere)
 library(poppr)
@@ -79,7 +76,6 @@ Spatial and genetic data per individual -> don't want by individual Jan 26, 2018
   - Thibaut in his vignette for adegenet says you can do isotlation by 
 ```{r}
 # Genepop input file with PhGi (TC) 431 individuals
-#phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser/Genepop/PhfoAllGenePop_13Dec2016.gen")
 phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/GenAlExAnalyses_Nov2017/Genpop_PhfoData_Nov2017.gen")
 
 table(phall@pop)
@@ -98,9 +94,8 @@ table(ph1@pop)
 phfo.gen <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS data 2016_all.csv")
 nrow(phfo.gen) #451 - some individuals were thrown out for the genetic data. 
 table(phfo.gen$Code)
-table(phfo.gen$Code[phfo.gen$DNA.Vial.in.Freezer...9.12.2016.inventory. == "YES"])
 #Still match these locaitons with the individuals from phall
-table(phall@pop,phall@tab)
+table(phall@pop)
 
 phfo.indloc <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/GenAlExAnalyses_Nov2017/LatLon_PhfoData_Nov2017.csv")
 
@@ -136,6 +131,14 @@ names(phfo.UTM) <- c(names(phfo.UTM)[-c((length(phfo.UTM)-1):length(phfo.UTM))],
 phall@other$xy <- phfo.UTM[,c("lon","lat")]
 ph1@other$xy <- phfo.UTM[-grep("TC",phfo.UTM$Code),c("lon","lat")]
 nrow(phall@other$xy) #425
+```
+
+
+```{r}
+ggplot(phfo.UTM[phfo.UTM$Code != "TC",], aes(lon,lat,colour=Code, label=Code))+
+  geom_point()+
+  geom_text(hjust=1, size=3)+
+  theme_bw()
 ```
 
 Get distance matrix for genetic distance by population (15)
@@ -221,42 +224,6 @@ ggmap(get_map(c(-107,40.5,-105.5,41)))+
   geom_point(data=latlonphfo, aes(Easting.1,Northing.1,colour=Population))
 ```
 
-```{r}  
-## example from adegenet - genind object iwth a matrix of xy coordinates
-#### Monmonierâs algorithm to define genetic boundaries
-temp <- as.integer(ph1$pop)
-
-plot(ph1$other$xy,pch=temp,cex=1.5,xlab='x',ylab='y',
-     col=temp)
-legend("bottomright",leg=unique(ph1$pop)) 
-
-ggplot()
-
-```
-
-#convert Northing Easting to lat long
-```{r}
-#Just the 15 populaitons, not individuals
-ph.ll <- spTransform(SpatialPoints(cbind(ph.dist$Easting,ph.dist$Northing),
-                          proj4string = CRS("+proj=utm +zone=13 + datus=NAD83")),
-            CRS("+proj=longlat +datum=WGS84"))
-
-ph.lls <- data.frame(coordinates(ph.ll))
-
-#give geode
-pairdist <- lapply(2:nrow(ph.lls), function(x){
-  gdist(lat.1=ph.lls$coords.x2[x-1], lon.1 = ph.lls$coords.x1[x-1], 
-        lat.2=ph.lls$coords.x2[x], lon.2 = ph.lls$coords.x1[x], units = "m")
-})
-
-
-ph.dist.eu <- dist(ph.lls)
-
-#write.table(ph.dist.eu, "clipboard", sep="\t", row.names=FALSE, col.names = FALSE)
-
-```
-
-
 #Mantel test    
 ##2018.01.12_updates  
         - want to make PCA of soils and climate for distance matric of environment, compare to distance matrix of genetic    
@@ -278,52 +245,11 @@ both PCNM and packfor
 <http://dr-k-lo.blogspot.com/2012/04/how-to-do-mantel-test-in-r.html>     
 
 <http://popgen.nescent.org/2015-05-18-Dist-SNP.html#section-2.-individual-genetic-distance-euclidean-distance-dist-adegenet> 
-ph1 #without TC    
-phall #with TC     
-```{r}  
-#by populaiton, not by individual... oh, because that's how you get distance, right?
-ph.genepop <- genind2genpop(ph1)
-#tab(ph.genepop)
-phall.genepop <- genind2genpop(phall) #genind has 431 indiviudals, down to the 15 populaitons
-#tab(phall.genepop)
-
-ph.genepop #no TC, 14 populations
-phall.genepop #with TC, 15 populaitons
-
-### TC in = phall.genpop
-#goegraphic distance matrix
-Dgeo <- distm(include.ind[,c("lon","lat")])
-is.euclid(dist(include.ind[,c("lon","lat")]))
-Dgeo <- as.dist(Dgeo)
-
-#1 = Nei's distance (not Euclidean)
-#Dgen <- dist.genpop(phall.genepop,method=1) #first time did 2 which is Angular or Edwards'; 1=Nei's
-Dgen <- dist(phall@tab, method="euclidean")
-
-hist(Dgen)
-
-#.randtest = in C; .rtest = in R
-ibd <- mantel.randtest(Dgen,Dgeo) 
-#repeat this for a distance matrix of climate variables! climate envelope
-ibd
-plot(ibd)
-
-abline(lm(Dgenind~Dgeo))
-title("Isolation by distance plot")
-
-
-Dgenind.noTC <- dist(ph1@tab) #euclidean
-Dgenind.maximum.noTC <- dist(ph1@tab, method="max")
-Dgeo.noTC <- dist(ph1$other$xy)
-#These are the genetic and geographic distance for 425 individuals
-ibd.noTC <- mantel.randtest(Dgenind.noTC,Dgeo.noTC) #OH dear, Dgen is 15 populations, Dgeo are all individuals
-ibd.noTC
-```
 
 
 ```{r}
-plot(Dgeo,Dgen)
-abline(lm(Dgen~Dgeo), col="red")
+plot(Dgeo,Dgenind)
+abline(lm(Dgenind~Dgeo), col="red")
 
 distgenEUCL <- dist(phall, method = "euclidean", diag = FALSE, upper = FALSE, p = 2)
 hist(distgenEUCL)
@@ -337,9 +263,9 @@ op <- par(no.readonly = TRUE)
 #Percent missing data per population
 missing_data <- info_table(phall, type="missing")
 sum(missing_data["Total",-13]>0) #10
-boxplot(missing_data["Total",-13], horizontal=TRUE, xlab="Locus", ylab="Percent Missing")
-stripchart(missing_data["Total",-13][i],method="jitter")
- rug(missing_data["Total",-13][i])
+barchart(missing_data["Total",-13], ylab="Locus", xlab="Percent Missing")
+#stripchart(missing_data["Total",-13],method="jitter")
+#rug(missing_data["Total",-13])
 ```
 Keep loci even if one missing value
 ```{r}
@@ -408,41 +334,16 @@ get_prism_monthlys(type="tmin", mon = 1:12, keepZip = FALSE, years = 1980:1993)
 
 ```{r}
 phall.genepop <- genind2genpop(phall)
- boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
+boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
 ibd.ind <- mantel.randtest(Dgeo, distgenDIFF)
 ibd.ind
 plot(ibd.ind)
 
 plot(Dgeo, distgenDIFF)
 abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
-
-library(MASS)
-dens <- kde2d(Dgeo,distgenDIFF, n=300)
-
-usa <- getData("GADM", country="USA", level=2)
-colorado <- usa[usa$NAME_1 == "Colorado",]
-counties <- c("Larimer","Jackson","Grand")
-ph.counties <- colorado[colorado$NAME_2 %in% grep(paste(counties, collapse="|"),
-                                                 colorado$NAME_2, value=TRUE),]
-ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
- 
-plot(bioclim.phfo[[1]])
-points(phall[,c("lon","lat")])
-
-bio<-list()
-for(i in 1:19){
-  bio[[i]] <- extract(bioclim.phfo[[i]], ph.dist[,c("Easting.1","Northing.1")])
-}
-filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
-flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1))
-
-shape <- list()
-#Get all the soil layers I made
-for(i in flnms){
-  shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
-  }
-
 ```
+
+
 
 
 ```{r}
@@ -469,10 +370,12 @@ avgPrecip <- lapply(ppt, function(x){
   data.frame(data = extract(rastertemps, phfo.UTM[,c("lon","lat")]), 
              date = ls_prism_data()[x,])
 })
-
+# These are the points, not the averages yet
 mins.avg <- do.call(rbind, avgTemps.min)
 maxs.avg <- do.call(rbind, avgTemps.max)
 ppt.avg <- do.call(rbind, avgPrecip)
+
+# also want the variance. so the SE of the averages
 
 
 save(mins.avg, file="P:/hackathon/Phacelia/mins_avg.rda")
@@ -505,64 +408,6 @@ BIO16 = Precipitation of Wettest Quarter
 BIO17 = Precipitation of Driest Quarter
 BIO18 = Precipitation of Warmest Quarter
 BIO19 = Precipitation of Coldest Quarter
-```{r}
-install.packages(c('raster', 'rgdal', 'dismo', 'rJava'))
-
-#download big bioclim data elsewhere, change wd
-setwd("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/World BioClim Date")
-
-setwd("P:/hackathon/Phacelia")
-
-#check out example file
-file <- paste(system.file(package="dismo"), "/ex/bradypus.csv", sep="")
-bradypus <- read.table(file, header=TRUE, sep=",")
-head(bradypus)
-
-phal <- gbif("phacelia", "alba*", geo=FALSE)
-phde <- gbif("phacelia", "denticulata*", geo=FALSE)
-phha <- gbif("phacelia", "hastata*", geo=FALSE)
-phhe <- gbif("phacelia", "heterophylla*", geo=FALSE)
-phse <- gbif("phacelia", "sericea*", geo=FALSE)
-
-phgeo <- subset(phse, !is.na(phse$lon) & !is.na(phse$lat))
-
-
-install.packages("maptools")
-library(maptools)
-
-data(wrld_simpl)
-plot(wrld_simpl, xlim=c(-150,-100), ylim=c(20,70), axes=TRUE,
-     col="light yellow")
-points(phgeo$lon, phgeo$lat, col="orange", pch=20, cex=0.75)
-
-
-bioclim <- getData("worldclim", var = 'bio', res = 2.5)
-
-    
-usa <- getData("GADM", country="USA", level=2)
-colorado <- usa[usa$NAME_1 == "Colorado",]
-counties <- c("Larimer","Jackson","Grand")
-ph.counties <- colorado[colorado$NAME_2 %in% grep(paste(counties, collapse="|"),
-                                                  colorado$NAME_2, value=TRUE),]
-ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
-plot(usa)
-plot(bioclim$bio1, main="Annual Mean Temperature")
-plot(bioclim$bio2, main="Annual Mean Temperature")
-
-#SRTM 90 Elevation
-srtm <- getData('SRTM', lon= -106, lat = 41)
-#mosaic enough tiles to gt them together!
-srtm1 <- getData('SRTM', lon= -106, lat = 40)
-strmmosaic <- mosaic(srtm, srtm1, fun=mean)
-
-plot(strmmosaic)
-plot(ph.counties, add=TRUE)
-
-ph.p <-data.frame(coordinates(ph.points))
-
-
-```
-
 
 Bioclim data for Jackson, Larimer, and Grand counties
 ```{r}
@@ -571,32 +416,58 @@ bioclim.phfo <- getData("worldclim", var='bio', res = 0.5, lon = -106, lat = 41)
 ggplot()+
   geom_path(data=ph.counties, aes(x=long, y=lat, group=group))+
   coord_map()+
-  geom_point(data=ph.p, aes(x=coords.x1, y=coords.x2))
+  geom_point(data=phfo.UTM[,c("lon","lat")], aes(x=lon, y=lat))
 
-#extract rasters to data, should lapply but not sure how
-bio1.ph <- extract(bioclim.ph$layer.1, ph.p)
-bio2.ph <- extract(bioclim.ph$layer.2, ph.p)
-bio3.ph <- extract(bioclim.ph$layer.3, ph.p)
-bio4.ph <- extract(bioclim.ph$layer.4, ph.p)
-bio5.ph <- extract(bioclim.ph$layer.5, ph.p)
-bio6.ph <- extract(bioclim.ph$layer.6, ph.p)
-bio7.ph <- extract(bioclim.ph$layer.7, ph.p)
-bio8.ph <- extract(bioclim.ph$layer.8, ph.p)
-bio9.ph <- extract(bioclim.ph$layer.9, ph.p)
-bio10.ph <- extract(bioclim.ph$layer.10, ph.p)
-bio11.ph <- extract(bioclim.ph$layer.11, ph.p)
-bio12.ph <- extract(bioclim.ph$layer.12, ph.p)
-bio13.ph <- extract(bioclim.ph$layer.13, ph.p)
-bio14.ph <- extract(bioclim.ph$layer.14, ph.p)
-bio15.ph <- extract(bioclim.ph$layer.15, ph.p)
-bio16.ph <- extract(bioclim.ph$layer.16, ph.p)
-bio17.ph <- extract(bioclim.ph$layer.17, ph.p)
-bio18.ph <- extract(bioclim.ph$layer.18, ph.p)
-bio19.ph <- extract(bioclim.ph$layer.19, ph.p)
+#extract rasters to data
+bio<-list()
+for(i in 1:19){
+  bio[[i]] <- extract(bioclim.phfo[[i]], phfo.UTM[,c("lon","lat")]) # projected from UTM Z13 NAD83 to longlat WGS84
+}
 
+
+plot(bioclim.phfo[[1]], xlim=c(-106.5,-105),ylim=c(40,41.125))
+points(phfo.UTM[,c("lon","lat")], col=phfo.UTM$Code)
+plot(ph.counties, add=TRUE)
+```
+
+```{r}
 layers <- sapply(1:19, function(x){
   paste("bio",x,".ph",sep="")
 })
+
+
+filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
+flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1))
+
+shape <- list()
+#Get all the soil layers I made
+for(i in flnms){
+  shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
+}
+
+
+usa <- getData("GADM", country="USA", level=2)
+colorado <- usa[usa$NAME_1 == "Colorado",]
+counties <- c("Larimer","Jackson","Grand")
+ph.counties <- colorado[colorado$NAME_2 %in% grep(paste(counties, collapse="|"),
+                                                 colorado$NAME_2, value=TRUE),]
+ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
+ 
+plot(bioclim.phfo[[1]])
+points(phall[,c("lon","lat")])
+points(phfo.UTM[,c("lon","lat")], col="red")
+
+
+
+#Extract soil layers to points data
+
+
+```
+
+
+
+
+```{r}
 
 biodata <- data.frame(soils.unique,bio1.ph,bio19.ph,bio18.ph,
                       bio17.ph,bio16.ph,bio15.ph,bio14.ph,bio13.ph,bio12.ph,
