@@ -424,18 +424,20 @@ for(i in 1:19){
   bio[[i]] <- extract(bioclim.phfo[[i]], phfo.UTM[,c("lon","lat")]) # projected from UTM Z13 NAD83 to longlat WGS84
 }
 
-
+usa <- getData("GADM", country="USA", level=2)
+colorado <- usa[usa$NAME_1 == "Colorado",]
+counties <- c("Larimer","Jackson","Grand")
+ph.counties <- colorado[colorado$NAME_2 %in% grep(paste(counties, collapse="|"),
+                                                 colorado$NAME_2, value=TRUE),]
+ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
+ 
 plot(bioclim.phfo[[1]], xlim=c(-106.5,-105),ylim=c(40,41.125))
 points(phfo.UTM[,c("lon","lat")], col=phfo.UTM$Code)
 plot(ph.counties, add=TRUE)
 ```
 
+Soils
 ```{r}
-layers <- sapply(1:19, function(x){
-  paste("bio",x,".ph",sep="")
-})
-
-
 filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
 flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1))
 
@@ -445,21 +447,12 @@ for(i in flnms){
   shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
 }
 
-
-usa <- getData("GADM", country="USA", level=2)
-colorado <- usa[usa$NAME_1 == "Colorado",]
-counties <- c("Larimer","Jackson","Grand")
-ph.counties <- colorado[colorado$NAME_2 %in% grep(paste(counties, collapse="|"),
-                                                 colorado$NAME_2, value=TRUE),]
-ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
- 
-plot(bioclim.phfo[[1]])
-points(phall[,c("lon","lat")])
-points(phfo.UTM[,c("lon","lat")], col="red")
-
-
-
 #Extract soil layers to points data
+soil<-list()
+for(i in length(shape)){
+  soil[[i]] <- extract(shape[[i]], phfo.UTM[,c("lon","lat")])
+}
+
 
 
 ```
