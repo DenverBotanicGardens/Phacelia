@@ -464,8 +464,11 @@ par(mfrow=c())
 Overlap methods for background and presence points  Ward et al. 2009; Phillips and Elith, 2011  
 
 ```{r}
-# create background points for convex haul for all three
+phfo.spdf <- SpatialPointsDataFrame(phfo.UTM[,c("lon","lat")],
+                                    phfo.UTM)
 
+# create background points for convex hull for all three
+convH <- convHull(phfo.spdf)
 
 # create background #2 with smaller circles around each county populations only   
 # Need a grid to get one point per grid of size whatever bioclim is to get background points? 
@@ -473,20 +476,19 @@ x <- circles(phfo.UTM[,c("lon","lat")], d=10000, lonlat=TRUE) #10 km
 
 #same grid as bioclim, create raster, r, same extent of bioclim.phfo[[1]]
 #Make spatialpointsdataframe
-phfo.spdf <- phfo.UTM[,c("lon","lat")]
-coordinates(phfo.spdf) <- ~lon+lat
-crs(phfo.spdf) <- crs(bioclim.phfo[[1]])
-phfo.spdf <- SpatialPointsDataFrame(phfo.UTM[,c("lon","lat")],
-                                    phfo.UTM)
-plot(phfo.spdf)
-r <- raster()
-r <- res(bioclim.phfo[[1]])
+
+background.crop <- crop(bioclim.phfo[[1]], extent(polygons(x)), snap="out",
+                        filename="Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/bc_bg_phfo_1")
+background.mask <- mask(bioclim.phfo[[1]], polygons(x),
+                        filename="Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/bc_mk_phfo_1")
 bgd <- 
 
 
 plot(ph.counties)
-plot(x, add=TRUE)
-points(phfo.UTM[,c("lon","lat")], col="red") 
+plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
+plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
+points(phfo.UTM[,c("lon","lat")], col="blue") 
+plot(background.mask, add=TRUE)
 
 
 ```
