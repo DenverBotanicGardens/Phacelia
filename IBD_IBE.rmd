@@ -476,7 +476,9 @@ x <- circles(phfo.UTM[,c("lon","lat")], d=10000, lonlat=TRUE) #10 km
 phfo.spdf <- phfo.UTM[,c("lon","lat")]
 coordinates(phfo.spdf) <- ~lon+lat
 crs(phfo.spdf) <- crs(bioclim.phfo[[1]])
-
+phfo.spdf <- SpatialPointsDataFrame(phfo.UTM[,c("lon","lat")],
+                                    phfo.UTM)
+plot(phfo.spdf)
 r <- raster()
 r <- res(bioclim.phfo[[1]])
 bgd <- 
