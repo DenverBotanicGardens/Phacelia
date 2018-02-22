@@ -453,6 +453,38 @@ for(i in length(shape)){
   soil[[i]] <- extract(shape[[i]], phfo.UTM[,c("lon","lat")])
 }
 
+par(mfrow=c())
+
+# get all soils and climate for each point
+
+
+```
+
+<https://cran.r-project.org/web/packages/dismo/vignettes/sdm.pdf>  
+Overlap methods for background and presence points  Ward et al. 2009; Phillips and Elith, 2011  
+
+```{r}
+# create background points for convex haul for all three
+
+
+# create background #2 with smaller circles around each county populations only   
+# Need a grid to get one point per grid of size whatever bioclim is to get background points? 
+x <- circles(phfo.UTM[,c("lon","lat")], d=10000, lonlat=TRUE) #10 km
+
+#same grid as bioclim, create raster, r, same extent of bioclim.phfo[[1]]
+#Make spatialpointsdataframe
+phfo.spdf <- phfo.UTM[,c("lon","lat")]
+coordinates(phfo.spdf) <- ~lon+lat
+crs(phfo.spdf) <- crs(bioclim.phfo[[1]])
+
+r <- raster()
+r <- res(bioclim.phfo[[1]])
+bgd <- 
+
+
+plot(ph.counties)
+plot(x, add=TRUE)
+points(phfo.UTM[,c("lon","lat")], col="red") 
 
 
 ```
