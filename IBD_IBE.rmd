@@ -424,6 +424,9 @@ for(i in 1:19){
   bio[[i]] <- extract(bioclim.phfo[[i]], phfo.UTM[,c("lon","lat")]) # projected from UTM Z13 NAD83 to longlat WGS84
 }
 
+#one matrix with bioclims and soils for presence points
+pr.phfo <- do.call(cbind,bio)
+
 usa <- getData("GADM", country="USA", level=2)
 colorado <- usa[usa$NAME_1 == "Colorado",]
 counties <- c("Larimer","Jackson","Grand")
@@ -439,7 +442,7 @@ plot(ph.counties, add=TRUE)
 Soils
 ```{r}
 filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
-flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1))
+flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1)) #13 layers I have
 
 shape <- list()
 #Get all the soil layers I made
@@ -447,11 +450,40 @@ for(i in flnms){
   shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
 }
 
+#Dissolve polygons by type
+aws <- do.call(rbind,lapply(which(flnms %in% flnms[grep("AWS",flnms)]), 
+                                   function(x){
+                                     shape[[x]]
+                                     })) 
+
+plot(aws)  
+
+depthWT <- do.call(rbind,lapply(which(flnms %in% flnms[grep("depthWT",flnms)]), 
+                                   function(x){
+                                     shape[[x]]
+                                     })) 
+
+plot(depthWT) 
+
+surfaceText <- do.call(rbind,lapply(which(flnms %in%
+                                            flnms[grep("surfaceText",flnms)]), 
+                                   function(x){
+                                     shape[[x]]
+                                     })) 
+
+plot(surfaceText) 
+points()
+
+
 #Extract soil layers to points data
 soil<-list()
 for(i in length(shape)){
-  soil[[i]] <- extract(shape[[i]], phfo.UTM[,c("lon","lat")])
+  soil[i] <- extract(shape[[i]], phfo.UTM[,c("lon","lat")])
 }
+
+#one matrix with bioclims and soils for presence points
+pr.soil <- do.call(cbind,soil)
+
 
 par(mfrow=c())
 
@@ -474,15 +506,11 @@ convH <- convHull(phfo.spdf)
 # Need a grid to get one point per grid of size whatever bioclim is to get background points? 
 x <- circles(phfo.UTM[,c("lon","lat")], d=10000, lonlat=TRUE) #10 km
 
-#same grid as bioclim, create raster, r, same extent of bioclim.phfo[[1]]
+#same grid as bioclim
 #Make spatialpointsdataframe
-
-background.crop <- crop(bioclim.phfo[[1]], extent(polygons(x)), snap="out",
-                        filename="Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/bc_bg_phfo_1")
 background.mask <- mask(bioclim.phfo[[1]], polygons(x),
                         filename="Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/bc_mk_phfo_1")
-bgd <- 
-
+bgd <- randomPoints(background.mask, 500)
 
 plot(ph.counties)
 plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
@@ -491,7 +519,28 @@ points(phfo.UTM[,c("lon","lat")], col="blue")
 plot(background.mask, add=TRUE)
 
 
+#Need to download a larger AOI
+plot(surfaceText)
+points(phfo.UTM[,c("lon","lat")], col="red") 
+points(bgd, col=rgb(0,0.5,1,0.5))
+
+aws
+
+# Save the circles and the convex hull as shapefile, break into 100^2 km chunkcs, feed into the soils usda site and get that coverage for phfo
+
+
+shape[[1]]
 ```
+
+```{r}
+plot(ph.counties)
+plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
+plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
+points(phfo.UTM[,c("lon","lat")], col="blue") 
+points(bgd)
+```
+
+
 
 
 
