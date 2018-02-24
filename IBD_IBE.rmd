@@ -562,24 +562,15 @@ plot(ph.counties, add=TRUE)
 points(phfo.UTM[,c("lon","lat")], col="red") 
 points(bgd, col=rgb(0,0.5,1,0.5))
 
-# need each grid as a shapefile
-for(i in 1:(r@ncols*r@nrows)){
-  r1 <- r
-  r1[r1!=i] <- NA
-  writeRaster(r1, paste("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/phforas",i,".tif",
-                        sep=""))
-}
-
-
-writeRaster(r, "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/rastergrid.tif")
 ```
 
-raster to shapefile
+raster to shapefile  
+Still all the extent of the whole raster, not just the extent of each
 ```{r}
-#first not try that function above, just use the extent of the raster
+
 for(i in 1:(r@ncols*r@nrows)){
-  r1 <- r
-  r1[r1!=i] <- NA
+  r1 <- r==i
+#  r1[r1!=i] <- NA
   r1 <- trim(r1, values=FALSE)
   p <- as(extent(r1), "SpatialPolygons")
   crs(p) <- proj4string(r)
