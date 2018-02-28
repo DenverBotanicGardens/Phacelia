@@ -134,13 +134,6 @@ nrow(phall@other$xy) #425
 ```
 
 
-```{r}
-ggplot(phfo.UTM[phfo.UTM$Code != "TC",], aes(lon,lat,colour=Code, label=Code))+
-  geom_point()+
-  geom_text(hjust=1, size=3)+
-  theme_bw()
-```
-
 Get distance matrix for genetic distance by population (15)
 ```{r}
 Dgen <- dist.genpop(genind2genpop(phall), method=1) #1: Nei's 2: Angular Edward's Euclidean distance
@@ -196,21 +189,13 @@ vegan::mantel(Dgeo,Dgenind, permutations = 9999)
 # 1. Classical IBD would result in continuous clines of genetic differentiation 
 # 2. distant and differentiated populations also results in this pattern. So...
 
-#plot both distances
-plot(Dgeo.tc,Dgen.tc)
-abline(lm(Dgen.tc~Dgeo.tc), col="red",lty=2)
-
 #Plot- can see patches
-dens.tc <- kde2d(Dgeo.tc,Dgen.tc, n=300)
+dens.tc <- kde2d(Dgeo.noTC,Dgenind.noTC, n=300)
 myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
-plot(Dgeo.tc, Dgen.tc, pch=20,cex=.5)
+plot(Dgeo.noTC, Dgenind.noTC, pch=20,cex=.5)
 image(dens.tc, col=transp(myPal(300),.7), add=TRUE)
-abline(lm(Dgen.tc~Dgeo.tc))
+abline(lm(Dgenind.noTC~Dgeo.noTC))
 title("Isolation by distance plot")
-
-plot(Dgeo.tc,Dgen.tc)
-
-ph.dist
 
 #Convert the Northing/Easting to lat/long
 ptsutm <- SpatialPoints(phfo.gen[,c("Easting","Northing")],
@@ -218,10 +203,6 @@ ptsutm <- SpatialPoints(phfo.gen[,c("Easting","Northing")],
 ptsgeo <- spTransform(ptsutm, CRS("+proj=longlat +datum=WGS84"))
 
 latlonphfo <- data.frame(phfo.gen,ptsgeo)
-
-ggmap(get_map(c(-107,40.5,-105.5,41)))+
-  geom_point(data=data, aes(long,lat,shape=Population.Code),size=4)+ #from Zapata_Phacelia.Rmd
-  geom_point(data=latlonphfo, aes(Easting.1,Northing.1,colour=Population))
 ```
 
 #Mantel test    
@@ -270,36 +251,35 @@ barchart(missing_data["Total",-13], ylab="Locus", xlab="Percent Missing")
 Keep loci even if one missing value
 ```{r}
 distgenDIFF <- dist.gene(phall.loci, method="pairwise", pairwise.deletion = TRUE, variance = FALSE)
+#Number of allelic differences between two individuals diss.dist from poppr    
+distgenDiSS <- diss.dist(phall, percent=FALSE, mat=FALSE)
+
+#Compare how different genetic distances deal with missing data and which might want to use in Mantel.test   
+phall.genepop <- genind2genpop(phall)
+
+#Maybe not the euclidian one, Nei's is not. So the second one? 
+ibd.ind <- mantel.randtest(Dgeo, distgenDIFF)
+ibd.ind
+phall.genepop <- genind2genpop(phall)
+
+
+#Classical IBD means clines of genetic differentiation to cause a correlation, or distant and differentiated populations can also result in this pattern
+
+layout(matrix(c(1,2,3,4,5,5),2,3,byrow=TRUE))
+
+hist(distgenDiSS)
 hist(distgenDIFF)
+boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
+plot(ibd.ind)
+plot(Dgeo, distgenDIFF)
+abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
+
 
 par(op)
 ```
 
-Number of allelic differences between two individuals diss.dist from poppr    
-```{r}
-distgenDiSS <- diss.dist(phall, percent=FALSE, mat=FALSE)
-hist(distgenDiSS)
 
-```
-Compare how different genetic distances deal with missing data and which might want to use in Mantel.test   
-```{r}
-phall.genepop <- genind2genpop(phall)
-boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
-```
 
-Maybe not the euclidian one, Nei's is not. So the second one? 
-```{r}
-ibd.ind <- mantel.randtest(Dgeo, distgenDIFF)
-ibd.ind
-plot(ibd.ind)
-
-```
-Classical IBD means clines of genetic differentiation to cause a correlation, or distant and differentiated populations can also result in this pattern
-```{r}
-plot(Dgeo, distgenDIFF)
-abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
-
-```
 Visualize density 
 ```{r}
 dens <- kde2d(Dgeo,distgenDIFF, n=300)
@@ -310,7 +290,6 @@ abline(lm(distgenDIFF~Dgeo))
 title("Isolation by distance plot")
 
 ```
-
 
 soils <https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/?cid=nrcs142p2_053627>
 Data from USDA <http://websoilsurvey.nrcs.usda.gov/app/WebSoilSurvey.aspx>   
@@ -346,7 +325,7 @@ abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
 
 
 
-```{r}
+```{r, eval=FALSE}
 options(prism.path = "Q:/Research/All_Projects_by_Species/Astragalus SPECIES/Astragalus_microcymbus/PRISM_asmiclimate")
 
 maxs <- grep("tmax", ls_prism_data(absPath=TRUE)[,2])
@@ -377,11 +356,18 @@ ppt.avg <- do.call(rbind, avgPrecip)
 
 # also want the variance. so the SE of the averages
 
-
 save(mins.avg, file="P:/hackathon/Phacelia/mins_avg.rda")
 save(maxs.avg, file="P:/hackathon/Phacelia/maxs_avg.rda")
 save(ppt.avg, file="P:/hackathon/Phacelia/ppt_avg.rda")
 
+
+```
+
+
+```{r}
+load("P:/hackathon/Phacelia/mins_avg.rda")
+load("P:/hackathon/Phacelia/maxs_avg.rda")
+load("P:/hackathon/Phacelia/ppt_avg.rda")
 
 ```
 
@@ -413,11 +399,6 @@ Bioclim data for Jackson, Larimer, and Grand counties
 ```{r}
 bioclim.phfo <- getData("worldclim", var='bio', res = 0.5, lon = -106, lat = 41)
 
-ggplot()+
-  geom_path(data=ph.counties, aes(x=long, y=lat, group=group))+
-  coord_map()+
-  geom_point(data=phfo.UTM[,c("lon","lat")], aes(x=lon, y=lat))
-
 #extract rasters to data
 bio<-list()
 for(i in 1:19){
@@ -437,6 +418,13 @@ ph.counties <- ph.counties[ph.counties$NAME_2 != "Rio Grande",]
 plot(bioclim.phfo[[1]], xlim=c(-106.5,-105),ylim=c(40,41.125))
 points(phfo.UTM[,c("lon","lat")], col=phfo.UTM$Code)
 plot(ph.counties, add=TRUE)
+
+
+ggplot()+
+  geom_path(data=ph.counties, aes(x=long, y=lat, group=group))+
+  coord_map()+
+  geom_point(data=phfo.UTM[,c("lon","lat")], aes(x=lon, y=lat))
+
 ```
 
 Soils
@@ -444,9 +432,11 @@ Soils
 filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
 flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1)) #13 layers I have
 
+
+
 shape <- list()
 #Get all the soil layers I made
-for(i in flnms){
+for(i in flnms[c(1:4,15:18)]){
   shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
 }
 
@@ -509,7 +499,10 @@ x <- circles(phfo.UTM[,c("lon","lat")], d=10000, lonlat=TRUE) #10 km
 #same grid as bioclim
 #Make spatialpointsdataframe
 background.mask <- mask(bioclim.phfo[[1]], polygons(x),
-                        filename="Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/bc_mk_phfo_1")
+                        filename="Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/bc_mk_phfo_1",
+                        overwrite=TRUE)
+
+
 bgd <- randomPoints(background.mask, 500)
 
 plot(ph.counties)
@@ -523,7 +516,9 @@ plot(background.mask, add=TRUE)
 plot(surfaceText)
 points(phfo.UTM[,c("lon","lat")], col="red") 
 points(bgd, col=rgb(0,0.5,1,0.5))
+```
 
+```{r}
 aws
 
 # Save the circles and the convex hull as shapefile, break into 100^2 km chunkcs, feed into the soils usda site and get that coverage for phfo
@@ -550,6 +545,8 @@ str(disx)
 #plot(sp_grd)
 ```
 
+
+Create a raster of approximately 100,000 acres for the soils usda website to download portions to cover the entire area of the three county speices. 
 ```{r}
 r <- raster()
 bb <- bbox(x@polygons) #Spatial bounding box, sp::bbox
@@ -594,23 +591,28 @@ points(bgd)
 
 
 
-
+Now extract points from all the bioclim layers, plot them in a pretty layout
 ```{r}
 
-biodata <- data.frame(soils.unique,bio1.ph,bio19.ph,bio18.ph,
-                      bio17.ph,bio16.ph,bio15.ph,bio14.ph,bio13.ph,bio12.ph,
-                      bio11.ph,bio10.ph,bio9.ph,
-                      bio8.ph,bio7.ph,bio6.ph,
-                      bio5.ph,bio4.ph,bio3.ph,bio2.ph)
-head(biodata)
+str(phfo.UTM)
+
+bioclimppoints <- data.frame(do.call(cbind,bio))
+names(bioclimppoints) <- paste("bio",1:19,sep="")
+biodata <- data.frame(phfo.UTM$Code, phfo.UTM$lat,phfo.UTM$lon,bioclimppoints)
 
 # canberra meant for non-negative counts, out, but it does measure relative distance
 # binary only for binary data, out
 # Euclidean isn't great in high dimensions - squares the differences
 # Manhattan just takes absolute value
 
+
+```
+
+
+
+```{r}
 #Should keep only not correltated ones
-cor.table <- cor(biodata[,30:48])
+cor.table <- cor(biodata[,3:length(biodata)])
 data <- as.data.frame(as.table(cor.table))
 combns <- combn(colnames(cor.table),2,FUN=function(x) paste(x,collapse = "_"))
 cor.data <- data[data$Var1 != data$Var2, ]
@@ -747,6 +749,51 @@ data[abs(data$Freq)>0.75,]
 
 # Use daisy to combine bioclim and soil
 
+
+
+library(car)
+scatterplotMatrix(~bio6+bio19+bio12+bio11, 
+                 diagonal = "histogram",
+                 groups = biodata$phfo.UTM.Code,
+                  data=biodata,
+                 reg.line=FALSE,
+                 smoother="")
+
+#plot function with layout
+layoutbioplot <- function(x){ #a vector of climate and/or soil columns from biodata
+  rowcols <- length(x)
+  uppertri <- sum(seq(rowcols-1,1))
+  lowertri <- uppertri+rowcols+1
+}
+layout(matrix(c(
+  uppertri+1,1:rowcols-1,
+  uppertri+2,rowcols:rowcols+1,
+  uppertri+3,)),
+       rowcols,rowcols,byrow=TRUE))
+
+layout(matrix(c(7,1,2,3,
+                11,8,4,5,
+                12,13,9,6,
+                14,15,16,10), 4,4,byrow = TRUE))
+for(i in 4:6){
+  par(mai = c(1,1,1,1)/4)
+  plot(biodata[,i],biodata[,3],col=biodata$phfo.UTM.Code,
+       xaxt="n")
+}
+for(i in 5:6){
+  par(mai = c(1,1,1,1)/4)
+  plot(biodata[,i],biodata[,4],col=biodata$phfo.UTM.Code,
+       xaxt="n")
+}
+par(mai = c(1,1,1,1)/4)
+plot(biodata[,6],biodata[,5], col=biodata$phfo.UTM.Code,
+       xaxt="n")
+for(i in 3:6){
+  hist(biodata[,i], main="")
+  rug(biodata[,i])
+}
+
+  
 ```
 
 
