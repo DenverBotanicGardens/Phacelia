@@ -683,7 +683,12 @@ scatterplotMatrix(~bio15+bio2+bio9+bio12,
 # precip bio16:19 all pretty highly correlated. 
 ```
 ```{r}
-
+scatterplotMatrix(~bio12+AWS025+Dep2WatTbl+pHwater, 
+                 diagonal = "density",
+                 groups = phfo.bioclim.soils$FID,
+                 data=phfo.bioclim.soils,
+                 reg.line=FALSE,
+                 smoother="")
 
 ```
 
@@ -726,8 +731,6 @@ layout.show(layout(matrix(c(7,1,2,3,
                 14,15,16,10), 4,4,byrow = TRUE)))
 ```
 
-```{r}
-#plot function with layout
 layoutbioplot <- function(x){ #a vector of climate and/or soil columns from biodata
   rowcols <- length(x)
   uppertri <- sum(seq(rowcols-1,1))
@@ -738,7 +741,6 @@ layout(matrix(c(
   uppertri+2,rowcols:rowcols+1,
   uppertri+3,)),
        rowcols,rowcols,byrow=TRUE))
-
 
 for(i in 4:6){
   par(mai = c(1,1,1,1)/4)
@@ -758,9 +760,15 @@ for(i in 3:6){
   rug(biodata[,i])
 }
 
-  
 
-pairs(phfo.bioclim.soils[,21:25], cex=0.1, fig=TRUE)
+```{r}
+#plot function with layout
+layout(matrix(c(7,1,2,3,
+                11,8,4,5,
+                12,13,9,6,
+                14,15,16,10), 4,4,byrow = TRUE))
+
+
 ```
 
 ```{r}
