@@ -37,15 +37,9 @@ library(boot)
 library(ecodist)
 library(geosphere)
 library(poppr)
+library(car)
+library(strataG)
 
-
-
-```
-
-Tutorials
-```{r, eval=FALSE}
-adegenetTutorial("spca")
-adegenetTutorial("dapc")
 
 ```
 
@@ -427,60 +421,35 @@ ggplot()+
 
 ```
 
-Soils
+Soils   
+Steps to get soil layers <"Q:\Research\All_Projects_by_Species\Phacelia SPECIES\Phacelia_formosula\Phacelia formosula_abiotic\Modelling\Soil_layer_data_extraction\Notes_on_soil_data_file_making.docx">   
 ```{r}
 filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
 flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1)) #13 layers I have
 
-
+# AWS025
+# depthWT
+# ph030
+# stext
 
 shape <- list()
-#Get all the soil layers I made
-for(i in flnms[c(1:4,15:18)]){
+#Get all the soil layers I made, Jessie made most of them!
+for(i in flnms){
   shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
 }
 
 #Dissolve polygons by type
-aws <- do.call(rbind,lapply(which(flnms %in% flnms[grep("AWS",flnms)]), 
-                                   function(x){
-                                     shape[[x]]
-                                     })) 
+types <- c("AWS","depthWT","ph030","stext")
 
-plot(aws)  
-
-depthWT <- do.call(rbind,lapply(which(flnms %in% flnms[grep("depthWT",flnms)]), 
-                                   function(x){
-                                     shape[[x]]
-                                     })) 
-
-plot(depthWT) 
-
-surfaceText <- do.call(rbind,lapply(which(flnms %in%
-                                            flnms[grep("surfaceText",flnms)]), 
-                                   function(x){
-                                     shape[[x]]
-                                     })) 
-
-plot(surfaceText) 
-points()
-
-
-#Extract soil layers to points data
-soil<-list()
-for(i in length(shape)){
-  soil[i] <- extract(shape[[i]], phfo.UTM[,c("lon","lat")])
-}
-
-#one matrix with bioclims and soils for presence points
-pr.soil <- do.call(cbind,soil)
-
-
-par(mfrow=c())
-
-# get all soils and climate for each point
-
+typeall <- lapply(types, function(tp){
+  do.call(rbind,lapply(which(flnms %in% flnms[grep(tp,flnms)]),
+                       function(x){
+                         shape[[x]]
+                         }))
+  })
 
 ```
+
 
 <https://cran.r-project.org/web/packages/dismo/vignettes/sdm.pdf>  
 Overlap methods for background and presence points  Ward et al. 2009; Phillips and Elith, 2011  
@@ -498,9 +467,10 @@ x <- circles(phfo.UTM[,c("lon","lat")], d=10000, lonlat=TRUE) #10 km
 
 #same grid as bioclim
 #Make spatialpointsdataframe
-background.mask <- mask(bioclim.phfo[[1]], polygons(x),
-                        filename="Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/bc_mk_phfo_1",
-                        overwrite=TRUE)
+#background.mask <- mask(bioclim.phfo[[1]], polygons(x),filename="Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/bc_mk_phfo_1",overwrite=TRUE)
+#save(background.mask,
+#     file="P:/hackathon/Phacelia/background.rda")
+load("P:/hackathon/Phacelia/background.rda")
 
 
 bgd <- randomPoints(background.mask, 500)
@@ -510,17 +480,63 @@ plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
 plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
 points(phfo.UTM[,c("lon","lat")], col="blue") 
 plot(background.mask, add=TRUE)
-
-
-#Need to download a larger AOI
-plot(surfaceText)
-points(phfo.UTM[,c("lon","lat")], col="red") 
-points(bgd, col=rgb(0,0.5,1,0.5))
 ```
 
-```{r}
-aws
 
+Now extract points from all the bioclim layers, plot them in a pretty layout
+```{r}
+
+#extract background and county points
+# add background points to other list
+bgdtoadd <- data.frame(t(matrix(NA,length(names(phfo.spdf)),
+                                nrow(bgd),byrow = TRUE)))
+names(bgdtoadd) <- names(phfo.spdf)
+bgdtoadd[,c("lon","lat")] <- bgd
+bgdtoadd$Code <- "background"
+
+#take over FID to group by county for plotting, 1:Jackson,2:Larimer,3:Grand
+phfo.spdf$FID <- 1
+phfo.spdf$FID[phfo.spdf$Code %in% c("HN","HS","FC")] <- 2
+phfo.spdf$FID[phfo.spdf$Code %in% c("TC")] <- 3
+bgdtoadd$FID <- 4
+
+phfo.spdf <- rbind(phfo.spdf@data,bgdtoadd)
+
+plot(bgd)
+plot(phfo.spdf[,c("lon","lat")])
+
+#Extract soil layers to points data
+soil<-list()
+for(i in length(shape)){
+  soil[i] <- extract(shape[[i]], phfo.spdf[,c("lon","lat")])
+}
+
+#one matrix with bioclims and soils for presence points
+pr.soil <- do.call(cbind,soil)
+
+
+par(mfrow=c())
+
+# get all soils and climate for each point
+
+
+str(phfo.UTM)
+
+bioclimppoints <- data.frame(do.call(cbind,bio))
+names(bioclimppoints) <- paste("bio",1:19,sep="")
+biodata <- data.frame(phfo.UTM$Code, phfo.UTM$lat,phfo.UTM$lon,bioclimppoints)
+
+# canberra meant for non-negative counts, out, but it does measure relative distance
+# binary only for binary data, out
+# Euclidean isn't great in high dimensions - squares the differences
+# Manhattan just takes absolute value
+
+
+```
+
+
+
+```{r}
 # Save the circles and the convex hull as shapefile, break into 100^2 km chunkcs, feed into the soils usda site and get that coverage for phfo
 xSPDF <- as(x@polygons, "SpatialPolygonsDataFrame")
 writeOGR(xSPDF, layer="xCircles", dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
@@ -590,23 +606,6 @@ points(bgd)
 
 
 
-
-Now extract points from all the bioclim layers, plot them in a pretty layout
-```{r}
-
-str(phfo.UTM)
-
-bioclimppoints <- data.frame(do.call(cbind,bio))
-names(bioclimppoints) <- paste("bio",1:19,sep="")
-biodata <- data.frame(phfo.UTM$Code, phfo.UTM$lat,phfo.UTM$lon,bioclimppoints)
-
-# canberra meant for non-negative counts, out, but it does measure relative distance
-# binary only for binary data, out
-# Euclidean isn't great in high dimensions - squares the differences
-# Manhattan just takes absolute value
-
-
-```
 
 
 
