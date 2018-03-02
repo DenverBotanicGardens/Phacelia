@@ -393,15 +393,6 @@ Bioclim data for Jackson, Larimer, and Grand counties
 ```{r}
 bioclim.phfo <- getData("worldclim", var='bio', res = 0.5, lon = -106, lat = 41)
 
-#extract rasters to data
-bio<-list()
-for(i in 1:19){
-  bio[[i]] <- extract(bioclim.phfo[[i]], phfo.UTM[,c("lon","lat")]) # projected from UTM Z13 NAD83 to longlat WGS84
-}
-
-#one matrix with bioclims and soils for presence points
-pr.phfo <- do.call(cbind,bio)
-
 usa <- getData("GADM", country="USA", level=2)
 colorado <- usa[usa$NAME_1 == "Colorado",]
 counties <- c("Larimer","Jackson","Grand")
@@ -420,6 +411,78 @@ ggplot()+
   geom_point(data=phfo.UTM[,c("lon","lat")], aes(x=lon, y=lat))
 
 ```
+
+
+```{r}
+# Save the circles and the convex hull as shapefile, break into 100^2 km chunkcs, feed into the soils usda site and get that coverage for phfo
+xSPDF <- as(x@polygons, "SpatialPolygonsDataFrame")
+writeOGR(xSPDF, layer="xCircles", dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
+
+convHSPDF <- as(convH@polygons, "SpatialPolygonsDataFrame")
+writeOGR(convHSPDF, layer="xConvHull", dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
+
+disx <- disaggregate(x@polygons)
+class(disx)
+str(disx)
+
+#cs <- c(3.65,3.65)*6000 #grid must be 100,000 acres: 1 acre = 4046.86 square meter; 1 degree latitude = 111.03 km | 68.99 miles and longitude = 1.42 km | 0.88 miles
+#405km
+405/111.03 #3.65
+
+
+#cd <- ceiling(diff(t(bb))/cs) # number of cells per direction
+#grd <- GridTopology(cellcentre.offset = bb[,1]+cs/2, cellsize = cs, cells.dim=cd)
+#sp_grd <- SpatialGridDataFrame(grd,
+#                               data=data.frame(id=1:prod(cd)),
+#                               proj4string=CRS(proj4string(x@polygons)))
+#plot(sp_grd)
+```
+
+
+Create a raster of approximately 100,000 acres for the soils usda website to download portions to cover the entire area of the three county speices. 
+```{r}
+r <- raster()
+bb <- bbox(x@polygons) #Spatial bounding box, sp::bbox
+
+res(r) <- 3.65*15
+r <- setExtent(r, bb)
+r <- setValues(r,seq(1,r@ncols*r@nrows))
+plot(r)
+plot(ph.counties, add=TRUE)
+points(phfo.UTM[,c("lon","lat")], col="red") 
+points(bgd, col=rgb(0,0.5,1,0.5))
+
+```
+
+raster to shapefile  
+Still all the extent of the whole raster, not just the extent of each
+```{r}
+
+for(i in 1:(r@ncols*r@nrows)){
+  r1 <- r==i
+#  r1[r1!=i] <- NA
+  r1 <- trim(r1, values=FALSE)
+  p <- as(extent(r1), "SpatialPolygons")
+  crs(p) <- proj4string(r)
+  pSPDF <- as(p, "SpatialPolygonsDataFrame")
+  writeOGR(pSPDF, layer=paste0("phfogrid",i),
+            dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
+
+#  writeRaster(r1, paste("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/phforas",i,".tif",sep=""))
+}
+```
+
+```{r}
+plot(ph.counties)
+plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
+plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
+points(phfo.UTM[,c("lon","lat")], col="blue") 
+points(bgd)
+```
+
+
+
+
 
 Soils   
 Steps to get soil layers <"Q:\Research\All_Projects_by_Species\Phacelia SPECIES\Phacelia_formosula\Phacelia formosula_abiotic\Modelling\Soil_layer_data_extraction\Notes_on_soil_data_file_making.docx">   
@@ -502,29 +565,46 @@ bgdtoadd$FID <- 4
 
 phfo.spdf <- rbind(phfo.spdf@data,bgdtoadd)
 
-plot(bgd)
-plot(phfo.spdf[,c("lon","lat")])
+#bio is a list of bioclim values at each point
+
+#extract rasters to data
+bio<-list()
+for(i in 1:19){
+  bio[[i]] <- extract(bioclim.phfo[[i]], phfo.spdf[,c("lon","lat")]) # projected from UTM Z13 NAD83 to longlat WGS84
+}
+
+#one matrix with bioclims and soils for presence points
+abiotic.phfo <- do.call(cbind,bio) #matrix of 425 presence points and 500 background points by 19 bioclim variables
+
+```
+
+
+```{r}
+prabpoints <- SpatialPoints(phfo.spdf[,c("lon","lat")],
+                                     #data=phfo.spdf,
+                proj4string=CRS(proj4string(typeall[[1]])))
 
 #Extract soil layers to points data
 soil<-list()
-for(i in length(shape)){
-  soil[i] <- extract(shape[[i]], phfo.spdf[,c("lon","lat")])
+for(i in 1:length(typeall)){
+  soil[[i]] <- over(prabpoints,typeall[[i]])
 }
 
 #one matrix with bioclims and soils for presence points
 pr.soil <- do.call(cbind,soil)
+typescol <- c("AWS","Dep2","pH","Surf")
+pr.soil.all <- (pr.soil[,grep(paste(typescol,
+                         collapse="|"),names(pr.soil),
+                   value=TRUE)])
 
+abiotic.phfo <- data.frame(abiotic.phfo)
+names(abiotic.phfo) <- paste("bio",1:19,sep="")
 
-par(mfrow=c())
+phfo.bioclim.soils <-
+  data.frame(phfo.spdf,abiotic.phfo,pr.soil.all)
 
-# get all soils and climate for each point
-
-
-str(phfo.UTM)
-
-bioclimppoints <- data.frame(do.call(cbind,bio))
-names(bioclimppoints) <- paste("bio",1:19,sep="")
-biodata <- data.frame(phfo.UTM$Code, phfo.UTM$lat,phfo.UTM$lon,bioclimppoints)
+#If haven't run the above percent missing data chunk
+op <- par(no.readonly = TRUE)
 
 # canberra meant for non-negative counts, out, but it does measure relative distance
 # binary only for binary data, out
@@ -536,78 +616,152 @@ biodata <- data.frame(phfo.UTM$Code, phfo.UTM$lat,phfo.UTM$lon,bioclimppoints)
 
 
 
+
 ```{r}
-# Save the circles and the convex hull as shapefile, break into 100^2 km chunkcs, feed into the soils usda site and get that coverage for phfo
-xSPDF <- as(x@polygons, "SpatialPolygonsDataFrame")
-writeOGR(xSPDF, layer="xCircles", dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
+scatterplotMatrix(~bio1+bio2+bio3+bio4, 
+                 diagonal = "qqplot",
+                 groups = phfo.bioclim.soils$FID,
+                 data=phfo.bioclim.soils,???
+                 reg.line=FALSE,
+                 smoother="")
 
-convHSPDF <- as(convH@polygons, "SpatialPolygonsDataFrame")
-writeOGR(convHSPDF, layer="xConvHull", dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
+# most normally distributed: bio2, get rid of bio1, bio4, and bio3
 
-disx <- disaggregate(x@polygons)
-class(disx)
-str(disx)
+scatterplotMatrix(~bio1+bio2+bio3+bio4, 
+                 diagonal = "density",
+                 groups = phfo.bioclim.soils$FID,
+                 data=phfo.bioclim.soils,
+                 reg.line=FALSE,
+                 smoother="")
+```
 
-#cs <- c(3.65,3.65)*6000 #grid must be 100,000 acres: 1 acre = 4046.86 square meter; 1 degree latitude = 111.03 km | 68.99 miles and longitude = 1.42 km | 0.88 miles
-#405km
-405/111.03 #3.65
+```{r}
+scatterplotMatrix(~bio5+bio2+bio6+bio7, 
+                 diagonal = "density",
+                 groups = phfo.bioclim.soils$FID,
+                 data=phfo.bioclim.soils,
+                 reg.line=FALSE,
+                 smoother="")
+
+#Only keep 2: Mean Diurnal Range (Mean of monthly (max temp - min temp))
+```
+```{r}
+scatterplotMatrix(~bio8+bio2+bio9+bio10, 
+                 diagonal = "density",
+                 groups = phfo.bioclim.soils$FID,
+                 data=phfo.bioclim.soils,
+                 reg.line=FALSE,
+                 smoother="")
+
+#keep 2: Mean Diurnal Range (Mean of monthly (max temp - min temp))
+#keep 9: Mean Temperature of Driest Quarter
+```
+```{r}
+scatterplotMatrix(~bio11+bio2+bio9+bio12, 
+                 diagonal = "density",
+                 groups = phfo.bioclim.soils$FID,
+                 data=phfo.bioclim.soils,
+                 reg.line=FALSE,
+                 smoother="")
+
+#keep 2: Mean Diurnal Range (Mean of monthly (max temp - min temp))
+#keep 9: Mean Temperature of Driest Quarter
+#keep 12: Annual Precipitation
+```
+```{r}
+scatterplotMatrix(~bio15+bio2+bio9+bio12, 
+                 diagonal = "density",
+                 groups = phfo.bioclim.soils$FID,
+                 data=phfo.bioclim.soils,
+                 reg.line=FALSE,
+                 smoother="")
+
+#keep 2: Mean Diurnal Range (Mean of monthly (max temp - min temp))
+#keep 9: Mean Temperature of Driest Quarter
+#keep 12: Annual Precipitation
+#Keep 15: Precipitation Seasonality (Coefficient of Variation)
+# precip bio16:19 all pretty highly correlated. 
+```
+```{r}
 
 
-#cd <- ceiling(diff(t(bb))/cs) # number of cells per direction
-#grd <- GridTopology(cellcentre.offset = bb[,1]+cs/2, cellsize = cs, cells.dim=cd)
-#sp_grd <- SpatialGridDataFrame(grd,
-#                               data=data.frame(id=1:prod(cd)),
-#                               proj4string=CRS(proj4string(x@polygons)))
-#plot(sp_grd)
 ```
 
 
-Create a raster of approximately 100,000 acres for the soils usda website to download portions to cover the entire area of the three county speices. 
 ```{r}
-r <- raster()
-bb <- bbox(x@polygons) #Spatial bounding box, sp::bbox
+#Turn all three counties in presence = 1 and all background of all three into absent = 0
+phfo.bioclim.soils$prab <- 1
+phfo.bioclim.soils$prab[phfo.bioclim.soils$FID<4] <- 0
+m1 <- glm(prab~bio15+bio2+bio9+bio12, data=phfo.bioclim.soils)
+summary(m1)
 
-res(r) <- 3.65*15
-r <- setExtent(r, bb)
-r <- setValues(r,seq(1,r@ncols*r@nrows))
-plot(r)
+m2 <- glm(prab~., data=phfo.bioclim.soils[,c(44,21:39)]) #only the bioclim columns
+
+modelpredic <- predict(m1, phfo.bioclim.soils[,c("bio15","bio2","bio9","bio12")])
+#From example presvals == phfo.bioclim.soils[phfo.bioclim.soils$FID<4,21:39]
+bc <- bioclim(phfo.bioclim.soils[phfo.bioclim.soils$FID<4,
+                                 c("bio15","bio2","bio9","bio12")])
+
+response(bc)
+```
+
+```{r}
+names(bioclim.phfo)
+predictors <- stack(bioclim.phfo[[c(2,9,12,15)]])
+names(predictors) <- c("bio2","bio9","bio12","bio15")
+
+
+p<- predict(predictors, m1)
+plot(p)
 plot(ph.counties, add=TRUE)
-points(phfo.UTM[,c("lon","lat")], col="red") 
-points(bgd, col=rgb(0,0.5,1,0.5))
-
 ```
 
-raster to shapefile  
-Still all the extent of the whole raster, not just the extent of each
+
+
 ```{r}
 
-for(i in 1:(r@ncols*r@nrows)){
-  r1 <- r==i
-#  r1[r1!=i] <- NA
-  r1 <- trim(r1, values=FALSE)
-  p <- as(extent(r1), "SpatialPolygons")
-  crs(p) <- proj4string(r)
-  pSPDF <- as(p, "SpatialPolygonsDataFrame")
-  writeOGR(pSPDF, layer=paste0("phfogrid",i),
-            dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
+layout.show(layout(matrix(c(7,1,2,3,
+                11,8,4,5,
+                12,13,9,6,
+                14,15,16,10), 4,4,byrow = TRUE)))
+```
 
-#  writeRaster(r1, paste("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/phforas",i,".tif",sep=""))
+```{r}
+#plot function with layout
+layoutbioplot <- function(x){ #a vector of climate and/or soil columns from biodata
+  rowcols <- length(x)
+  uppertri <- sum(seq(rowcols-1,1))
+  lowertri <- uppertri+rowcols+1
 }
+layout(matrix(c(
+  uppertri+1,1:rowcols-1,
+  uppertri+2,rowcols:rowcols+1,
+  uppertri+3,)),
+       rowcols,rowcols,byrow=TRUE))
+
+
+for(i in 4:6){
+  par(mai = c(1,1,1,1)/4)
+  plot(biodata[,i],biodata[,3],col=biodata$phfo.UTM.Code,
+       xaxt="n")
+}
+for(i in 5:6){
+  par(mai = c(1,1,1,1)/4)
+  plot(biodata[,i],biodata[,4],col=biodata$phfo.UTM.Code,
+       xaxt="n")
+}
+par(mai = c(1,1,1,1)/4)
+plot(biodata[,6],biodata[,5], col=biodata$phfo.UTM.Code,
+       xaxt="n")
+for(i in 3:6){
+  hist(biodata[,i], main="")
+  rug(biodata[,i])
+}
+
+  
+
+pairs(phfo.bioclim.soils[,21:25], cex=0.1, fig=TRUE)
 ```
-
-```{r}
-plot(ph.counties)
-plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
-plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
-points(phfo.UTM[,c("lon","lat")], col="blue") 
-points(bgd)
-```
-
-
-
-
-
-
 
 ```{r}
 #Should keep only not correltated ones
@@ -749,50 +903,6 @@ data[abs(data$Freq)>0.75,]
 # Use daisy to combine bioclim and soil
 
 
-
-library(car)
-scatterplotMatrix(~bio6+bio19+bio12+bio11, 
-                 diagonal = "histogram",
-                 groups = biodata$phfo.UTM.Code,
-                  data=biodata,
-                 reg.line=FALSE,
-                 smoother="")
-
-#plot function with layout
-layoutbioplot <- function(x){ #a vector of climate and/or soil columns from biodata
-  rowcols <- length(x)
-  uppertri <- sum(seq(rowcols-1,1))
-  lowertri <- uppertri+rowcols+1
-}
-layout(matrix(c(
-  uppertri+1,1:rowcols-1,
-  uppertri+2,rowcols:rowcols+1,
-  uppertri+3,)),
-       rowcols,rowcols,byrow=TRUE))
-
-layout(matrix(c(7,1,2,3,
-                11,8,4,5,
-                12,13,9,6,
-                14,15,16,10), 4,4,byrow = TRUE))
-for(i in 4:6){
-  par(mai = c(1,1,1,1)/4)
-  plot(biodata[,i],biodata[,3],col=biodata$phfo.UTM.Code,
-       xaxt="n")
-}
-for(i in 5:6){
-  par(mai = c(1,1,1,1)/4)
-  plot(biodata[,i],biodata[,4],col=biodata$phfo.UTM.Code,
-       xaxt="n")
-}
-par(mai = c(1,1,1,1)/4)
-plot(biodata[,6],biodata[,5], col=biodata$phfo.UTM.Code,
-       xaxt="n")
-for(i in 3:6){
-  hist(biodata[,i], main="")
-  rug(biodata[,i])
-}
-
-  
 ```
 
 
