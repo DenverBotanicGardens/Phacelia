@@ -305,19 +305,6 @@ get_prism_monthlys(type="tmin", mon = 1:12, keepZip = FALSE, years = 1980:1993)
 
 ```
 
-```{r}
-phall.genepop <- genind2genpop(phall)
-boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
-ibd.ind <- mantel.randtest(Dgeo, distgenDIFF)
-ibd.ind
-plot(ibd.ind)
-
-plot(Dgeo, distgenDIFF)
-abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
-```
-
-
-
 
 ```{r, eval=FALSE}
 options(prism.path = "Q:/Research/All_Projects_by_Species/Astragalus SPECIES/Astragalus_microcymbus/PRISM_asmiclimate")
@@ -404,16 +391,10 @@ plot(bioclim.phfo[[1]], xlim=c(-106.5,-105),ylim=c(40,41.125))
 points(phfo.UTM[,c("lon","lat")], col=phfo.UTM$Code)
 plot(ph.counties, add=TRUE)
 
-
-ggplot()+
-  geom_path(data=ph.counties, aes(x=long, y=lat, group=group))+
-  coord_map()+
-  geom_point(data=phfo.UTM[,c("lon","lat")], aes(x=lon, y=lat))
-
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 # Save the circles and the convex hull as shapefile, break into 100^2 km chunkcs, feed into the soils usda site and get that coverage for phfo
 xSPDF <- as(x@polygons, "SpatialPolygonsDataFrame")
 writeOGR(xSPDF, layer="xCircles", dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
@@ -440,7 +421,7 @@ str(disx)
 
 
 Create a raster of approximately 100,000 acres for the soils usda website to download portions to cover the entire area of the three county speices. 
-```{r}
+```{r, eval=FALSE}
 r <- raster()
 bb <- bbox(x@polygons) #Spatial bounding box, sp::bbox
 
@@ -456,7 +437,7 @@ points(bgd, col=rgb(0,0.5,1,0.5))
 
 raster to shapefile  
 Still all the extent of the whole raster, not just the extent of each
-```{r}
+```{r, eval=FALSE}
 
 for(i in 1:(r@ncols*r@nrows)){
   r1 <- r==i
@@ -472,7 +453,7 @@ for(i in 1:(r@ncols*r@nrows)){
 }
 ```
 
-```{r}
+```{r, eval=FALSE}
 plot(ph.counties)
 plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
 plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
@@ -621,7 +602,7 @@ op <- par(no.readonly = TRUE)
 scatterplotMatrix(~bio1+bio2+bio3+bio4, 
                  diagonal = "qqplot",
                  groups = phfo.bioclim.soils$FID,
-                 data=phfo.bioclim.soils,???
+                 data=phfo.bioclim.soils,
                  reg.line=FALSE,
                  smoother="")
 
@@ -682,14 +663,33 @@ scatterplotMatrix(~bio15+bio2+bio9+bio12,
 #Keep 15: Precipitation Seasonality (Coefficient of Variation)
 # precip bio16:19 all pretty highly correlated. 
 ```
-```{r}
+```{r, eval=FALSE}
+plotin <- phfo.bioclim.soils[phfo.bioclim.soils$pHwater<100 &
+                               phfo.bioclim.soils$AWS025<100,]
+
+mycols <- rgb(plotin$FID,plotin$FID,plotin$FID,plotin$FID)
+     
+          
+                
+              rep(table(plotin$FID)/100,table(plotin$FID)),
+              rep(table(plotin$FID)/100,table(plotin$FID)),
+              1/plotin$FID))
+
 scatterplotMatrix(~bio12+AWS025+Dep2WatTbl+pHwater, 
                  diagonal = "density",
-                 groups = phfo.bioclim.soils$FID,
-                 data=phfo.bioclim.soils,
+                 groups = plotin$FID,
+                 data=plotin,
                  reg.line=FALSE,
                  smoother="")
 
+
+ggplot(plotin[complete.cases(plotin$Code) & plotin$FID<4,], 
+       aes(bio12,AWS025, colour=as.factor(FID)))+
+  geom_point()+
+  geom_point(data=plotin[plotin$FID==4 &
+                           complete.cases(plotin$Code),],
+                         aes(bio12,AWS025), alpha=0.15)+
+  theme_bw()
 ```
 
 
@@ -760,7 +760,25 @@ for(i in 3:6){
   rug(biodata[,i])
 }
 
-
+Meaningless, no differences  
+# 2 bio12+Dep2WatTbl, then: pHwater
+plot(phfo.bioclim.soils$bio12[phfo.bioclim.soils$FID<4 &
+                                phfo.bioclim.soils$Dep2WatTbl>100],
+     phfo.bioclim.soils$Dep2WatTbl[phfo.bioclim.soils$FID<4 &
+                                     phfo.bioclim.soils$Dep2WatTbl>100],
+     col=phfo.bioclim.soils$FID[phfo.bioclim.soils$FID<4&
+                                  phfo.bioclim.soils$Dep2WatTbl>100],
+     pch=16, axes=FALSE, ylab="", xlab="") 
+#"Avaliable Surface Water (0-25cm)",xlab="Annual Precipitation")
+axis(side=4,las=1)
+points(phfo.bioclim.soils$bio12[phfo.bioclim.soils$FID==4 &
+                                  phfo.bioclim.soils$Dep2WatTbl>100],
+     phfo.bioclim.soils$Dep2WatTbl[phfo.bioclim.soils$FID==4 &
+                                     phfo.bioclim.soils$Dep2WatTbl>100],
+     pch=16, cex=2,
+     col=rgb(1,0.5,0,0.05))
+     
+     
 ```{r}
 #plot function with layout
 layout(matrix(c(7,1,2,3,
@@ -768,10 +786,35 @@ layout(matrix(c(7,1,2,3,
                 12,13,9,6,
                 14,15,16,10), 4,4,byrow = TRUE))
 
+# 1 annual precip bio12 to AWS025
+phfo.bioclim.soils_sm <- phfo.bioclim.soils[phfo.bioclim.soils$AWS025<100,]
+plot(phfo.bioclim.soils_sm$bio12[phfo.bioclim.soils_sm$FID<4],
+     phfo.bioclim.soils_sm$AWS025[phfo.bioclim.soils_sm$FID<4],
+     col=phfo.bioclim.soils_sm$FID[phfo.bioclim.soils_sm$FID<4],
+     pch=16, axes=FALSE, ylab="", xlab="") 
+#"Avaliable Surface Water (0-25cm)",xlab="Annual Precipitation")
+axis(side=3,las=1)
+points(phfo.bioclim.soils_sm$bio12[phfo.bioclim.soils_sm$FID==4],
+     phfo.bioclim.soils_sm$AWS025[phfo.bioclim.soils_sm$FID==4],
+     pch=16, cex=2,
+     col=rgb(1,0.5,0,0.05))
+
+# 2 annual precip to phwater
+plot(phfo.bioclim.soils_sm$bio12[phfo.bioclim.soils_sm$FID<4],
+     phfo.bioclim.soils_sm$pHwater[phfo.bioclim.soils_sm$FID<4],
+     col=phfo.bioclim.soils_sm$FID[phfo.bioclim.soils_sm$FID<4],
+     pch=16, axes=FALSE, ylab="", xlab="") 
+#"Avaliable Surface Water (0-25cm)",xlab="Annual Precipitation")
+axis(side=3,las=1)
+points(phfo.bioclim.soils_sm$bio12[phfo.bioclim.soils_sm$FID==4],
+     phfo.bioclim.soils_sm$pHwater[phfo.bioclim.soils_sm$FID==4],
+     pch=16, cex=2,
+     col=rgb(1,0.5,0,0.05))
+
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 #Should keep only not correltated ones
 cor.table <- cor(biodata[,3:length(biodata)])
 data <- as.data.frame(as.table(cor.table))
@@ -913,504 +956,3 @@ data[abs(data$Freq)>0.75,]
 
 ```
 
-
-### TO DO:
-<http://creativemorphometrics.co.vu/blog/2014/03/27/extracting-climate-data-in-r/>    
-get data   
-```{r}
-setwd("~/tmean") #this is the folder with all the GeoTiffs
-library(raster)
-library(sp)
-library(rgdal)
-meanJan <- raster("tmean1_16.tif") #mean temp for January etc.
-meanFeb <- raster("tmean2_16.tif")
-meanMar <- raster("tmean3_16.tif")
-meanApr <- raster("tmean4_16.tif")
-meanMaj <- raster("tmean5_16.tif")
-meanJun <- raster("tmean6_16.tif")
-meanJul <- raster("tmean7_16.tif")
-meanAvg <- raster("tmean8_16.tif")
-meanSep <- raster("tmean9_16.tif")
-meanOkt <- raster("tmean10_16.tif")
-meanNov <- raster("tmean11_16.tif")
-meanDec <- raster("tmean12_16.tif")
-plot(meanJan) #will simply get the basic R plot of a GeoTiff raster
-
-
-
-
-```
-
-
-<http://www.sthda.com/english/wiki/ade4-and-factoextra-principal-component-analysis-r-software-and-data-mining>
-
-Data cleaning
-```{r}
-sum(duplicated(soils[,c("EastingAll","NorthingAll")]))
-#28
-
-soils.unique <- soils[!duplicated(soils[,c("EastingAll","NorthingAll")]),]
-ph.points <- spTransform(SpatialPoints(cbind(soils.unique$EastingAll,soils.unique$NorthingAll),
-                                       proj4string = CRS("+proj=utm +zone=13 +datum=NAD83")),
-                         CRS("+proj=longlat +datum=WGS84"))
-
-#cross check coordinates
-#Make a SpatialPointsDataFrame
-library(sp)
-
-ph.p <-data.frame(coordinates(ph.points))
-
-ggplot()+
-  geom_path(data=ph.counties, aes(x=long, y=lat, group=group))+
-  coord_map()+
-  geom_point(data=ph.p, aes(x=coords.x1, y=coords.x2))
-
-
-```
-
-Sampling bias    
-with many samples, subsampling to reduce sampling bias   
-ph.points == acg in example
-```{r}
-r <- raster(ph.points)
-#cells are set to 1 degree
-res(r) <- 1
-# extend the extent of the RasterLayer a little
-r <- extend(r, extent(r)+1)
-#sample
-phsel <- gridSample(ph.points, r, n=1) # must be 1 per degree cell
-
-p <- rasterToPolygons(r)
-plot(p, border='gray')
-points(ph.points)
-```
-
-Background data - for when you don't have absence data   
-OR pseudo-absences but these guys don't like as much
-dismo to sample random points for background data
-```{r}
-
-files <- list.files(path=paste(system.file(package="dismo"), '/ex',
-                               sep=''), pattern='grd', full.names=TRUE )
-
-#mask to exclude areas with no data
-mask <- raster(files[1])
-
-#select random sample points, set seed
-set.seed(1963)
-bg <- randomPoints(mask, 500)
-
-plot(!is.na(mask), legend=FALSE)
-points(bg, cex=0.5)
-
-#extent to restrict areas from which random points will be drawn
-e <- extent(-80, -53, -39, -22)
-bg2 <- randomPoints(mask, 50, ext=e)
-plot(!is.na(mask), legend=FALSE)
-plot(e, add=TRUE, col='red')
-points(bg2, cex=0.5)
-
-
-#Phacelia
-rm(mask,bg2,rr)
-mask <- raster(xmn=-107, xmx=-105,ymn=40, ymx = 41, nrow=100, ncol=100)
-mask[]=runif(100*100)
-
-plot(mask)
-plot(ph.counties, add=TRUE)
-points(ph.points)
-
-rr <- mask(mask,ph.counties)
-
-plot(rr)
-plot(ph.counties, add=TRUE)
-
-bg2 <- randomPoints(rr, 500)
-plot(!is.na(mask), legend=FALSE)
-plot(rr, add=TRUE, col='red')
-points(bg2, cex=0.5)
-
-#circles with a radius of 5 km
-x <- circles(rasterToPoints(rr), d=5000, lonlat=TRUE)
-pol <- polygons(x)
-
-head(x@presence)
-head(x@absence)
-
-# then use rgeos package to dissolve circles (remove boundaries where overlap)
-#sample from circles
-samp1 <- spsample(pol, 250, type="random", iter=25)
-cells <- cellFromXY(mask, samp1)
-cells <- unique(cells)
-
-xy <- xyFromCell(mask, cells)
-
-plot(pol, axes=TRUE)
-points(xy, cex=0.75, pch=20, col='blue')
-```
-
-Raster data - predictor variables    
-ASCII files are slow
-```{r}
-#get elevation from worldclim
-w <- getData('alt', country='USA')
-
-files <- list.files(path=paste("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/World BioClim Date/bio_2-5m_bil", 
-                               sep = ''),
-                    pattern='grd', full.names=TRUE)
-
-files2 <- list.files(path=paste("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/World BioClim Date",
-                                sep = ''),
-                     pattern='grd', full.names=TRUE)
-
-usa.alt <- raster("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/World BioClim Date/USA1_msk_alt.grd")
-
-m <- data.frame(long = c(max(ph.points@coords[,1]),min(ph.points@coords[,1])),
-                lat = c(max(ph.points@coords[,2]),min(ph.points@coords[,2])))
-cbind(m, alt = extract(w, m))
-
-# Don't know what the .grd.vat.cpg files are
-predictors <- stack(files[c(1,4:21)])
-
-#missing projection
-proj4string(predictors) <- CRS("+proj=longlat +datum=WGS84")
-proj4string(usa.alt) <- CRS("+proj=longlat +datum=WGS84")
-
-names(predictors)
-plot(predictors)
-plot(usa.alt)
-
-predictors <- crop(predictors, extent(r)+1)
-predictor.alt <- crop(files2)
-
-plot(predictors)
-
-plot(predictors,1)
-plot(ph.counties, add=TRUE)
-points(ph.points, col="blue", pch =20, cex = 0.5)
-
-```
-
-Create new predictor variables - example: use land cover data and focal() and create new variable that indicates how much forest area is available within Xkm of a grid cell..
-```{r}
-?focal
-
-```
-
-#Extract values from rasters
-```{r}
-presvals <- extract(predictors, ph.points)
-altvals <- extract(usa.alt, ph.points)
-
-cnts <- extract(ph.counties, ph.points)
-
-#set random seed to always create same random set of points
-set.seed(0)
-
-backgr <- randomPoints(predictors, 500)
-
-absvals <- extract(predictors, backgr)
-
-# row for each point 
-pb <- c(rep(1, nrow(presvals)), rep(0, nrow(absvals)))
-cnts <- c(cnts$NAME_2, rep(0, nrow(absvals)))
-site <- c(soils.unique$Population, rep(0, nrow(absvals)))
-sdmdata <- data.frame(cnts, site, pb, rbind(presvals, absvals))
-
-#categorical variables   
-#SKIP
-sdmdata[,'biome'] <- as.factor(sdmdata[,'biome'])
-
-head(sdmdata)
-table(sdmdata$cnts)
-
-pairs(sdmdata[,4:22], cex=0.1, fig=TRUE)
-
-#sdmdata[,3:22] <- sapply(sdmdata[,3:22], function(num) as.numeric(num))
-```
-
-#Model fitting   
-pb - presence vs background points for the three phacelia species
-```{r}
-m1 <- glm(pb ~ bio1 + bio13 + bio2 + bio3 + bio4 + bio9, data=sdmdata)
-class(m1)
-
-summary(m1)
-
-bc <- bioclim(presvals[,c('bio1','bio13','bio2','bio3','bio4','bio9')])
-class(bc)
-pairs(bc)
-```
-
-#Model evaluation
-```{r}
-#training data set
-samp <- sample(nrow(sdmdata), round(0.75 * nrow(sdmdata)))
-traindata <- sdmdata[samp,]
-
-traindata <- traindata[traindata[,'pb'] == 1, -(1:3)]
-
-testdata <- sdmdata[-samp,]
-bc <- bioclim(traindata)
-
-e <- evaluate(testdata[testdata$pb==1,], testdata[testdata$pb==0,], bc)
-plot(e, 'ROC')
-
-#Really want a k-fold data partitioning instead of single random sample
-#### START HERE on page 39 of the sdm vignette
-
-```
-
-
-
-```{r}
-#too many, take out highly correlated ones
-cutoff <- 0.75
-cor.table <- cor(sdmdata[,-(1:3)])
-data <- as.data.frame(as.table(cor.table))
-combins <- combn(colnames(cor.table),2,FUN=function(x) paste(x,collapse="_"))
-cor.data <- data[data$Var1 != data$Var2, ]
-data <- cor.data[paste(cor.data$Var1, cor.data$Var2, sep="_") %in% combins,]
-exclude1 <- paste(data$Var2[abs(data$Freq)>cutoff],sep=",")
-exclude2 <- paste(data$Var1[abs(data$Freq)>cutoff],sep=",")
-
-
-#Which are correlated? 
-data.cor <- data[abs(data$Freq)>cutoff,]
-correlated <- c(grep(paste(c(exclude1,exclude2), collapse="|"),names(sdmdata), value=TRUE))
-
-pairs(sdmdata[,correlated], cex=0.1, fig=TRUE)
-
-forstep <- sdmdata[,c(grep(paste(exclude1, collapse="|"),
-                            names(sdmdata), value=TRUE, invert=TRUE))]
-
-pairs(forstep[,-(1:3)])
-
-pairs(sdmdata[,c(unique(exclude2),unique(exclude1))])
-```
-
-Step regression - which factors explain differences in species   
-convergence issues: logistf <http://cran.r-project.org/web/packages/logistf/logistf.pdf>
-```{r}
-glm(cnts~bio1+bio13+bio13+bio2+bio3+bio4+bio9,
-    data=forstep[cnts!="0",], family = binomial, control = list(maxit=50))
-
-step1 <- step(glm(cnts~bio1+bio13+bio13+bio2+bio3+bio4+bio9,
-                 data=forstep, family=binomial),control = list(maxit=70))
-
-#Don't need the background points for these
-ggplot(sdmdata[cnts!="0",], aes(x=cnts, y=bio2))+
-  geom_boxplot()
-
-# 3 same for Larimer and Grand
-ggplot(sdmdata[cnts!="0",], aes(bio1,bio4,colour=cnts))+ 
-  geom_point()
-
-#15 splits Jackson
-ggplot(sdmdata[cnts!="0",], aes(bio1,bio3,colour=cnts))+ 
-  geom_point()
-
-ggplot(sdmdata[cnts!="0",], aes(bio1,bio2,colour=cnts))+ 
-  geom_point()
-
-ggplot(sdmdata[cnts!="0",], aes(bio1,bio13,colour=cnts))+ 
-  geom_point()
-
-ggplot(sdmdata[cnts!="0",], aes(bio1,bio9,colour=cnts))+ 
-  geom_point()
-
-
-```
-
-Environmental factors and background points
-```{r}
-ggplot(sdmdata, aes(x=cnts, y=bio15))+
-  geom_boxplot()
-
-ggplot(sdmdata, aes(x=cnts, y=bio1))+
-  geom_boxplot()
-
-ggplot(sdmdata, aes(x=cnts, y=bio2))+
-  geom_boxplot()
-
-ggplot(sdmdata, aes(x=cnts, y=bio13))+
-  geom_boxplot()
-
-ggplot(sdmdata, aes(x=cnts, y=bio9))+
-  geom_boxplot()
-
-
-
-```
-
-
-
-#Ignore Grand
-```{r}
-sdmdata.phfo.phsc <- sdmdata[cnts=="Jackson"|cnts=="Larimer",]
-sdmdata.phfo.phsc$cnts <- factor(sdmdata.phfo.phsc$cnts)
-
-step1 <- step(glm(cnts~bio10+bio13+bio15+bio18+bio2+bio8,
-                 data=sdmdata.phfo.phsc, family=binomial),control = list(maxit=70))
-
-ggplot(sdmdata.phfo.phsc, aes(bio2, bio18, colour=cnts))+
-  geom_point()+
-  stat_ellipse()
-
-ggplot(sdmdata.phfo.phsc, aes(bio6, bio14, colour=cnts))+
-  geom_point()
-
-```
-
-
-
-
-<https://www.rforge.net/doc/packages/climates/html/bioclim.html>
-```{r}
-install.packages("climates") #nope, how?!
-
-
-```
-
-
-Now have environmental variables (by going through the sdm vignette)
-follow vegan tutorial, trying to get environmental variables   
-<http://cc.oulu.fi/~jarioksa/opetus/metodi/vegantutor.pdf>
-```{r}
-
-
-```
-
-
-ecodist   
-simple mantel statistic  - degree of dissimilarity in one datset compared to detree of dissimilarity in another independently-derived dataset   
-<https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3873175/>   
-<http://www.molecularecologist.com/2015/06/ibeibd-contour-plots-in-r/>  
-
-Forester et al. 2016 Molecular Ecology 
-##### START HERE #####
-1) PCA 
-2) RDA reduncancy analysis : contrained ordination extends linear regression to multivariate response data to maximize proportion of response variable that is explained. (response variables: genetic data; linear comintation of predictor variables (environemtnal data)) 
-```{r}
-library(labdsv)
-vegdist()
-
-ph.df <- genind2df(ph1)
-head(ph.df)
-ph.df <- as.data.frame(ph.df)
-ph.df[,2:13] <- sapply(ph.df[,2:13], function(x) as.numeric(x))
-
-ph.vegdist <- vegdist(ph.df[,-1], method = "bray", na.rm = TRUE)
-disana(ph.vegdist)
-
-ph.pco <- pco(ph.vegdist)
-ph.pco$eig
-
-barplot(ph.pco$eig)
-
-ph.genepop <- genind2genpop(ph1)
-tab(ph.genepop)
-```
-
-<http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>  
-Some of this would work better for the environmental variables
-```{r}
-ph.tab <- tab(ph.genepop, NA.method="mean")
-ph.pca <- dudi.pca(ph.tab, scannf=TRUE, scale=FALSE) # nf = 4  #can determine number dimensions in the final results
-
-summary(ph.pca)
-phxy <- ph.pca$co
-   
-s.corcircle(phxy, label = row.names(phxy), grid = TRUE,
-            box = FALSE)
-
-temp <- as.integer(pop(ph1))
-myCol <- transp(c("red","blue"),.7)[temp]
-myPch <- c(15:17)[temp]
-
-plot(ph.pca$li)
-plot(ph.pca$li, col = myCol, pch=myPch) 
-
-## use wordcloud for non-overlapping labels
-textplot(ph.pca$li[,1], ph.pca$li[,2], words=rownames(ph.tab), cex=1.4, new=FALSE)
-
-## legend the axes by adding loadings
-#abline(h=0,v=0,col="grey",lty=2)
-#s.arrow(ph.pca$c1*.5, add.plot=TRUE)
-legend("topright", pch=c(15,17), col=transp(c("blue","red"),.7),
-leg=c("Group A","Group B"), pt.cex=2)
-
-#https://trapa.cz/sites/default/files/r_mol_data_phylogen.pdf
-# Kernel density
-s.label(ph.pca$li, clabel = 0.75)
-s.kde2d(ph.pca$li, cpoint=0, add.plot = TRUE)
-
-```
-
-Pluess et al 20016 New Phytologist
-```{r}
-#Variable factor map
-pca.space <- princomp(pca.ph[,-(1:3)], cor=TRUE)
-summary(pca.space)
-ph.load <- loadings(pca.space)
-ph.pc <- predict(pca.space)
-
-ph.pc <- data.frame(ph.pc, pca.ph)
-
-summary(lm(Comp.1~alt, data=ph.pc))
-
-rm(ph.pc)
-#PCA of factors
-pca.ph <- sdmdata[cnts!="0",]
-pca.ph$alt <- altvals
-
-cutoff <- 0.75
-cor.table <- cor(pca.ph[,-(1:3)])
-data <- as.data.frame(as.table(cor.table))
-combins <- combn(colnames(cor.table),2,FUN=function(x) paste(x,collapse="_"))
-cor.data <- data[data$Var1 != data$Var2, ]
-data <- cor.data[paste(cor.data$Var1, cor.data$Var2, sep="_") %in% combins,]
-exclude1 <- paste(data$Var2[abs(data$Freq)>cutoff],sep=",")
-exclude2 <- paste(data$Var1[abs(data$Freq)>cutoff],sep=",")
-
-
-#Which are correlated? 
-data.cor <- data[abs(data$Freq)>cutoff,]
-correlated <- c(grep(paste(c(exclude1,exclude2), collapse="|"),names(pca.ph), value=TRUE))
-
-pairs(pca.ph[,correlated[1:5]], cex=0.1, fig=TRUE)
-pairs(pca.ph[,correlated[6:10]], cex=0.1, fig=TRUE)
-
-forpca <- pca.ph[,c(grep(paste(exclude1, collapse="|"),
-                         names(pca.ph), value=TRUE, invert=TRUE))]
-
-
-
-ph.pca <- princomp(forpca[,-(1:3)], cor=TRUE)
-summary(ph.pca)
-ph.load <- loadings(ph.pca)
-ph.pc <- predict(ph.pca)
-
-ph.pc <- data.frame(ph.pc, pca.ph)
-
-summary(lm(Comp.1~alt, data=ph.pc))
-```
-
-
-```{r}
-ggplot(ph.pc, aes(Comp.1, Comp.2, colour = cnts))+
-  geom_point()+
-  stat_ellipse()
-
-```
-
-
-redundancy analysis (RDA): combines PCA on allele frequencies and multiple regression
-Meirmans Molecular Ecology "Seven common mistakes in pouplaiton genetics and how to avoid them"
-
-
-<https://www.analyticsvidhya.com/blog/2016/04/complete-tutorial-tree-based-modeling-scratch-in-python/> 
-```{r}
-
-
-```
