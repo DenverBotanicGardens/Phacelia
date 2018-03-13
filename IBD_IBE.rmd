@@ -411,7 +411,7 @@ plot(ph.counties, add=TRUE)
 
 ```
 
-
+To create background points:  
 ```{r, eval=FALSE}
 # Save the circles and the convex hull as shapefile, break into 100^2 km chunkcs, feed into the soils usda site and get that coverage for phfo
 xSPDF <- as(x@polygons, "SpatialPolygonsDataFrame")
