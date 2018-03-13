@@ -18,14 +18,13 @@ library(raster)
 library(rgdal)
 library(maptools)
 library(devtools)
-library(ecodist)
 library(vegan)
 library(MASS)
 library(prism)
 library(dismo)
 library(ggplot2)
-library(Imap)
-library(wordcloud)
+#library(Imap)
+#library(wordcloud)
 library(MASS)
 library(adegenet)
 library(pegas)
@@ -143,8 +142,24 @@ plot(ibd)
 ibdmax <- mantel.randtest(Dgeo,Dgenind.maximum)
 ibdmax
 
+##START HERE!
+# By group becuase hisorty and soil types might influence (Meirmans et. al. XXXX)
+Dgeo_Jackson <-dist(phall$other$xy[phall@pop %in% c("")])
+
+
 #vegan version
 vegan::mantel(Dgeo,Dgenind, permutations = 9999)
+
+#log transform distance?
+plot(density(Dgeo), xlim=c(-11,11))
+lines(density(log(Dgeo)),col="red")
+
+#similar "rank"?
+
+determinant(as.matrix(Dgenind), logarithm = TRUE)
+eigens <- eigen(as.matrix(Dgenind))
+plot(density(eigens$values))
+max(eigens$values) #2757.032 that's some crazy variance
 ```
 
 ```{r}
@@ -152,6 +167,9 @@ plot(Dgeo,Dgenind)
 abline(lm(Dgenind~Dgeo))
 
 summary(lm(Dgenind~Dgeo))
+
+
+
 ```
 
 ```{r}
@@ -356,25 +374,25 @@ load("P:/hackathon/Phacelia/ppt_avg.rda")
 The code above returns a raster with the 18 bioclimate variables covering the whole world with a resoltion of 2.5 minutes of degrees:
 averaged over 1960-1990
 
-BIO1 = Annual Mean Temperature
-BIO2 = Mean Diurnal Range (Mean of monthly (max temp – min temp))
-BIO3 = Isothermality (BIO2/BIO7) (* 100)
-BIO4 = Temperature Seasonality (standard deviation *100)
-BIO5 = Max Temperature of Warmest Month
-BIO6 = Min Temperature of Coldest Month
-BIO7 = Temperature Annual Range (BIO5-BIO6)
-BIO8 = Mean Temperature of Wettest Quarter
-BIO9 = Mean Temperature of Driest Quarter
-BIO10 = Mean Temperature of Warmest Quarter
-BIO11 = Mean Temperature of Coldest Quarter
-BIO12 = Annual Precipitation
-BIO13 = Precipitation of Wettest Month
-BIO14 = Precipitation of Driest Month
-BIO15 = Precipitation Seasonality (Coefficient of Variation)
-BIO16 = Precipitation of Wettest Quarter
-BIO17 = Precipitation of Driest Quarter
-BIO18 = Precipitation of Warmest Quarter
-BIO19 = Precipitation of Coldest Quarter
+    BIO1 = Annual Mean Temperature  
+    BIO2 = Mean Diurnal Range (Mean of monthly (max temp - min temp))  
+    BIO3 = Isothermality (BIO2/BIO7) (* 100)  
+    BIO4 = Temperature Seasonality (standard deviation *100)  
+    BIO5 = Max Temperature of Warmest Month  
+    BIO6 = Min Temperature of Coldest Month  
+    BIO7 = Temperature Annual Range (BIO5-BIO6)   
+    BIO8 = Mean Temperature of Wettest Quarter  
+    BIO9 = Mean Temperature of Driest Quarter  
+    BIO10 = Mean Temperature of Warmest Quarter  
+    BIO11 = Mean Temperature of Coldest Quarter  
+    BIO12 = Annual Precipitation  
+    BIO13 = Precipitation of Wettest Month  
+    BIO14 = Precipitation of Driest Month  
+    BIO15 = Precipitation Seasonality (Coefficient of Variation)  
+    BIO16 = Precipitation of Wettest Quarter  
+    BIO17 = Precipitation of Driest Quarter  
+    BIO18 = Precipitation of Warmest Quarter  
+    BIO19 = Precipitation of Coldest Quarter  
 
 Bioclim data for Jackson, Larimer, and Grand counties
 ```{r}
@@ -465,9 +483,9 @@ points(bgd)
 
 
 
-Soils   
+#Soils   
 Steps to get soil layers <"Q:\Research\All_Projects_by_Species\Phacelia SPECIES\Phacelia_formosula\Phacelia formosula_abiotic\Modelling\Soil_layer_data_extraction\Notes_on_soil_data_file_making.docx">   
-```{r}
+```{r, echo=FALSE}
 filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
 flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1)) #13 layers I have
 
@@ -491,6 +509,8 @@ typeall <- lapply(types, function(tp){
                          shape[[x]]
                          }))
   })
+
+save(typeall, file="P:/hackathon/Phacelia/typeall_soils.rda")
 
 ```
 
@@ -528,7 +548,7 @@ plot(background.mask, add=TRUE)
 
 
 Now extract points from all the bioclim layers, plot them in a pretty layout
-```{r}
+```{r, eval=FALSE}
 
 #extract background and county points
 # add background points to other list
@@ -557,10 +577,14 @@ for(i in 1:19){
 #one matrix with bioclims and soils for presence points
 abiotic.phfo <- do.call(cbind,bio) #matrix of 425 presence points and 500 background points by 19 bioclim variables
 
+save(abiotic.phfo, file="P:/hackathon/Phacelia/abiotic_phfo.rda")
+
 ```
 
 
 ```{r}
+load("P:/hackathon/Phacelia/abiotic_phfo.rda")
+load("P:/hackathon/Phacelia/typeall_soils.rda")
 prabpoints <- SpatialPoints(phfo.spdf[,c("lon","lat")],
                                      #data=phfo.spdf,
                 proj4string=CRS(proj4string(typeall[[1]])))
@@ -663,17 +687,31 @@ scatterplotMatrix(~bio15+bio2+bio9+bio12,
 #Keep 15: Precipitation Seasonality (Coefficient of Variation)
 # precip bio16:19 all pretty highly correlated. 
 ```
+
+# PCoA for 
+vegan  
+  isoMDS - non-metric multidimentsional scaling
+  
+
+ade4 - alternative implementation of ordination methods
+```{r}
+
+
+```
+
+metric scaling
+```{r}
+
+
+```
+
+
+
 ```{r, eval=FALSE}
 plotin <- phfo.bioclim.soils[phfo.bioclim.soils$pHwater<100 &
                                phfo.bioclim.soils$AWS025<100,]
 
-mycols <- rgb(plotin$FID,plotin$FID,plotin$FID,plotin$FID)
-     
-          
-                
-              rep(table(plotin$FID)/100,table(plotin$FID)),
-              rep(table(plotin$FID)/100,table(plotin$FID)),
-              1/plotin$FID))
+
 
 scatterplotMatrix(~bio12+AWS025+Dep2WatTbl+pHwater, 
                  diagonal = "density",
@@ -688,8 +726,20 @@ ggplot(plotin[complete.cases(plotin$Code) & plotin$FID<4,],
   geom_point()+
   geom_point(data=plotin[plotin$FID==4 &
                            complete.cases(plotin$Code),],
-                         aes(bio12,AWS025), alpha=0.15)+
+                         aes(bio12,AWS025), alpha=0.25)+
   theme_bw()
+
+```
+Plot with density of each type, background, three counties on margins
+```{r}
+xhist_bio12 <- lapply(1:4, function(x){
+  histout <- hist(plotin$bio12[complete.cases(plotin$Code) & 
+                                 plotin$FID == x],plot=FALSE)
+  histout
+})
+
+plot(plotin$bio12[complete.cases(plotin$Code) & plotin$FID<4,],
+     plotin$AWS025[complete.cases(plotin$Code) & plotin$FID<4,])
 ```
 
 
