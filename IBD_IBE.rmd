@@ -38,7 +38,7 @@ library(geosphere)
 library(poppr)
 library(car)
 library(strataG)
-
+library(rgeos)
 
 ```
 
@@ -151,15 +151,15 @@ Dgeo_Jackson <-dist(phall$other$xy[phall@pop %in% c("")])
 vegan::mantel(Dgeo,Dgenind, permutations = 9999)
 
 #log transform distance?
-plot(density(Dgeo), xlim=c(-11,11))
+plot(density(Dgeo), xlim=c(-11,11), main = "Distance of geo, red = log transformed")
 lines(density(log(Dgeo)),col="red")
 
 #similar "rank"?
 
 determinant(as.matrix(Dgenind), logarithm = TRUE)
-eigens <- eigen(as.matrix(Dgenind))
-plot(density(eigens$values))
-max(eigens$values) #2757.032 that's some crazy variance
+eigens <- eigen(as.matrix(Dgenind)) #the variance
+plot(density(eigens$values), main="variance")
+points(max(eigens$values),0.1) #2757.032 that's some crazy variance
 ```
 
 ```{r}
@@ -411,6 +411,7 @@ plot(ph.counties, add=TRUE)
 
 ```
 
+#Background points
 To create background points:  
 ```{r, eval=FALSE}
 # Save the circles and the convex hull as shapefile, break into 100^2 km chunkcs, feed into the soils usda site and get that coverage for phfo
@@ -541,14 +542,14 @@ bgd <- randomPoints(background.mask, 500)
 
 plot(ph.counties)
 plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
-plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
-points(phfo.UTM[,c("lon","lat")], col="blue") 
-plot(background.mask, add=TRUE)
+#plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
+points(phfo.UTM[,c("lon","lat")], col="blue", pch=16) 
+#plot(background.mask, add=TRUE)
 ```
 
 
 Now extract points from all the bioclim layers, plot them in a pretty layout
-```{r, eval=FALSE}
+```{r}
 
 #extract background and county points
 # add background points to other list
@@ -583,7 +584,7 @@ save(abiotic.phfo, file="P:/hackathon/Phacelia/abiotic_phfo.rda")
 
 
 ```{r}
-load("P:/hackathon/Phacelia/abiotic_phfo.rda")
+#load("P:/hackathon/Phacelia/abiotic_phfo.rda")
 load("P:/hackathon/Phacelia/typeall_soils.rda")
 prabpoints <- SpatialPoints(phfo.spdf[,c("lon","lat")],
                                      #data=phfo.spdf,
@@ -605,8 +606,11 @@ pr.soil.all <- (pr.soil[,grep(paste(typescol,
 abiotic.phfo <- data.frame(abiotic.phfo)
 names(abiotic.phfo) <- paste("bio",1:19,sep="")
 
+#phfo.spdf: 425 20
+#abiotic.phfo: 925 19 (the bioclim variables for 425 points and 500 background)
+#pr.soil.all: 425 4 ()
 phfo.bioclim.soils <-
-  data.frame(phfo.spdf,abiotic.phfo,pr.soil.all)
+  data.frame(phfo.spdf,abiotic.phfo,pr.soil.all) 
 
 #If haven't run the above percent missing data chunk
 op <- par(no.readonly = TRUE)
@@ -619,8 +623,154 @@ op <- par(no.readonly = TRUE)
 
 ```
 
+```{r}
+library(corrplot)
+
+names(phfo.bioclim.soils)
+
+cor_matrix <- cor(phfo.bioclim.soils[,c(21:39)])
+corrplot(cor_matrix, method="square", type="upper")
+
+```
+Bio12:19 are all highly correlated (>0.5) so for simplicity, just keep Bio12, annual precipitation  
+
+Bio8 and 12 are still correlated, (mean temp of wettest quarter) so 8 is out  
+Bio11 is problematic (correlated to 1,2,4,5, and 7)  Out  
+
+Bio7 probably better than 4, 5 or 6
+
+bio2 out  
+```{r}
+names(phfo.bioclim.soils[,c(21,27,29,32)])
+cor_matrix <- cor(phfo.bioclim.soils[,c(21,27,29,32)])
+corrplot(cor_matrix, method="square", type="upper")
+
+forPCA <- phfo.bioclim.soils[,c(21,27,29,32)]
+```
+
+Principal components Analysis
+```{r}
+phfopca <- princomp(forPCA, cor=TRUE) #use the correlation matrix, not covariance
+
+sumforplot <- summary(phfopca)
+sumforplot$center
+sumforplot$scale
+PoV <- phfopca$sdev^2/sum(phfopca$sdev^2) #The proportion of the variance (standard deviation^2) for each componant to the total variance 
+phfo.load <- loadings(phfopca)
+phfo.pc <- predict(phfopca)
+
+pcaphfo.bioclim.soils <- data.frame(phfo.pc,phfo.bioclim.soils)
+
+#Not quite, just want the background points
+meanComp1 <- aggregate(Comp.1~FID, data=pcaphfo.bioclim.soils, mean)
+meanComp2 <- aggregate(Comp.2~FID, data=pcaphfo.bioclim.soils, mean)
+
+# I'd want to show 2 standard deviations to show the breadth of possible environemtns in which these populations fall
+SDComp1 <- aggregate(Comp.1~FID, data=pcaphfo.bioclim.soils, sd)
+SDComp2 <- aggregate(Comp.2~FID, data=pcaphfo.bioclim.soils, sd)
+
+#Confidence interval around the mean, not really want I want to show
+CIComp1 <- aggregate(Comp.1~FID, data=pcaphfo.bioclim.soils,
+                     function(x) qnorm(1-0.05/2)*(sd(x)/sqrt(length(x))))
+CIComp2 <- aggregate(Comp.2~FID, data=pcaphfo.bioclim.soils,
+                     function(x) qnorm(1-0.05/2)*(sd(x)/sqrt(length(x))))
+
+```
+
+```{r}
+jpeg(paste("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/PCA_Bio1_7_9_12.jpg"), width=150, height=150, units="mm", res=300)
+
+plot(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==4],
+     pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==4], 
+     col=rgb(0,0,0,0.05),pch=16,
+     xlab=paste("Comp.1 (Proportion of Variance ",round(PoV[1],2)*100,"%)",
+                sep=""), 
+     ylab=paste("Comp.2 (Proportion of Variance ", round(PoV[2],2)*100,
+                "%)", sep=""))
+points(meanComp1[4,2],meanComp2[4,2], pch=16)
+arrows(meanComp1[4,2],meanComp2[4,2],
+      meanComp1[4,2]+2*SDComp1[4,2],meanComp2[4,2],
+      length=0.1,angle=90)
+arrows(meanComp1[4,2],meanComp2[4,2],
+      meanComp1[4,2]-2*SDComp1[4,2],meanComp2[4,2],
+      length=0.1,angle=90)
+arrows(meanComp1[4,2],meanComp2[4,2],
+      meanComp1[4,2],meanComp2[4,2]+2*SDComp2[4,2],
+      length=0.1,angle=90)
+arrows(meanComp1[4,2],meanComp2[4,2],
+      meanComp1[4,2],meanComp2[4,2]-2*SDComp2[4,2],
+      length=0.1,angle=90)
+points(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==1],
+     pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==1], 
+#     col="red",
+#     pch=as.numeric((pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID==1])),
+     pch = 1)
+points(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==2],
+     pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==2], 
+     #col="blue", #pch=as.numeric(pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID==2]))
+     pch=2)
+points(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==3],
+     pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==3],
+     #col="goldenrod", 
+     pch=3)
+legend("bottomright",
+       #pch=c(as.numeric(pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID==1]),as.numeric(pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID==2]),16),col=c(rep("red",11),rep("blue",3),"goldenrod"),
+       pch=c(1,2,3),
+ #      col=c("red","blue","goldenrod"),
+       legend = c("Jackson","Larimer","Grand")) 
+#text(Comp.2~Comp.1, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID<4,], labels = pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID<4],cex=0.75)
+
+dev.off()
+```
+
+```{r}
+cor_soil <- cor(phfo.bioclim.soils[,c(40:42)], use = "pairwise.complete.obs")
+corrplot(cor_soil)
+
+meanDepth <- aggregate(AWS025~FID, data=pcaphfo.bioclim.soils, mean)
+meanph <- aggregate(pHwater~FID, data=pcaphfo.bioclim.soils, mean)
+SDDepth <- aggregate(AWS025~FID, data=pcaphfo.bioclim.soils, sd)
+SDph <- aggregate(pHwater~FID, data=pcaphfo.bioclim.soils, sd)
+
+CIDepth <- aggregate(AWS025~FID, data=pcaphfo.bioclim.soils,
+                     function(x) qnorm(1-0.05/2)*(sd(x)/sqrt(length(x))))
+CIph <- aggregate(pHwater~FID, data=pcaphfo.bioclim.soils,
+                  function(x) qnorm(1-0.05/2)*(sd(x)/sqrt(length(x))))
+```
+
+```{r}
+plot(pcaphfo.bioclim.soils$AWS025[pcaphfo.bioclim.soils$FID<4],
+     pcaphfo.bioclim.soils$pHwater[pcaphfo.bioclim.soils$FID<4], type="n",
+     xlab="Avaliable surface water", ylab="pH")
+points(meanDepth[-4,2],meanph[-4,2], pch=21, cex=2, col=c("red","blue","goldenrod"))
+# for(i in 1:3){
+#  arrows(meanDepth[i,2],meanph[i,2],
+#       meanDepth[i,2]+CIDepth[i,2],meanph[i,2],
+#       length=0.1,angle=90)
+#  arrows(meanDepth[i,2],meanph[i,2],
+#        meanDepth[i,2]-CIDepth[i,2],meanph[i,2],
+#        length=0.1,angle=90)
+#  arrows(meanDepth[i,2],meanph[i,2],
+#        meanDepth[i,2],meanph[i,2]+CIph[i,2],
+#        length=0.1,angle=90)
+#  arrows(meanDepth[i,2],meanph[i,2],
+#        meanDepth[i,2],meanph[i,2]-CIph[i,2],
+#        length=0.1,angle=90)
+# }
+points(pcaphfo.bioclim.soils$AWS025[pcaphfo.bioclim.soils$FID==1],
+     pcaphfo.bioclim.soils$pHwater[pcaphfo.bioclim.soils$FID==1], 
+     pch = 16, col="red")
+points(pcaphfo.bioclim.soils$AWS025[pcaphfo.bioclim.soils$FID==2],
+     pcaphfo.bioclim.soils$pHwater[pcaphfo.bioclim.soils$FID==2], col="blue",      pch=17)
+points(pcaphfo.bioclim.soils$AWS025[pcaphfo.bioclim.soils$FID==3],
+     pcaphfo.bioclim.soils$pHwater[pcaphfo.bioclim.soils$FID==3],     col="goldenrod", pch=18)
+legend("bottomleft",
+       pch=c(16,17,18),
+       col=c("red","blue","goldenrod"),
+       legend = c("Jackson","Larimer","Grand")) 
 
 
+```
 
 ```{r}
 scatterplotMatrix(~bio1+bio2+bio3+bio4, 
