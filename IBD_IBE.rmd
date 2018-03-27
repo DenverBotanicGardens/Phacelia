@@ -13,7 +13,7 @@ rm(list=ls())
 <http://dr-k-lo.blogspot.com/2012/04/how-to-do-mantel-test-in-r.html>     
 <http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>     
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(raster)
 library(rgdal)
 library(maptools)
@@ -27,18 +27,20 @@ library(ggplot2)
 #library(wordcloud)
 library(MASS)
 library(adegenet)
-library(pegas)
+#library(pegas)
 library(ape)
 library(ade4)
 library(ggmap)
 library(vegan)
 library(boot)
-library(ecodist)
+#library(ecodist)
 library(geosphere)
-library(poppr)
+#library(poppr)
 library(car)
-library(strataG)
+#library(strataG)
 library(rgeos)
+#library(diveRsity)
+library(ggmap)
 
 ```
 
@@ -56,6 +58,8 @@ ph.dist <- data.frame(ph.dist,ph.dist.LatLon)
 spatialdist.noTC <- dist(ph.dist[-15,3:4]) #exclude Troublesome Creek
 spatialdist.TC <- dist(ph.dist[,3:4])
 # from DAPC and <http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>
+
+ph.dist
 
 #Dgeo <- spatialdist.noTC
 
@@ -127,6 +131,7 @@ nrow(phall@other$xy) #425
 ```
 
 
+
 Get distance matrix for genetic distance by population (15)
 ```{r}
 Dgen <- dist.genpop(genind2genpop(phall), method=1) #1: Nei's 2: Angular Edward's Euclidean distance
@@ -162,13 +167,46 @@ plot(density(eigens$values), main="variance")
 points(max(eigens$values),0.1) #2757.032 that's some crazy variance
 ```
 
+strataG
+```{r, eval=FALSE}
+gtypes_phfo <- genind2gtypes(phall)
+
+#
+Hstats(gtypes_phfo)
+
+output_pw_phfo <- pairwiseTest(gtypes_phfo)
+
+output_pw_phfo$pair.mat$`G''st`
+
+#Fst(phall, pop=phall@pop)
+save(output_pw_phfo, file="P:/hackathon/Phacelia/output_pw_phfo.rda")
+
+```
+
 ```{r}
-plot(Dgeo,Dgenind)
+load("P:/hackathon/Phacelia/output_pw_phfo.rda")
+
+library(reshape2)
+dgeo.df <- data.matrix(Dgeo)
+dgeo.df <- data.frame(dgeo.df)
+names(dgeo.df)<-phall@pop
+dgeo.df$Pair <- phall@pop
+dgeo.melt <- melt(dgeo.df)
+
+ggplot(dgeo.melt, aes(x=variable,y=value))+
+  geom_boxplot(aes(fill=variable))
+
+plot(Dgeo,Dgenind, col=as.factor(phall@pop))
 abline(lm(Dgenind~Dgeo))
 
 summary(lm(Dgenind~Dgeo))
 
-
+plot(lm(Dgenind~Dgeo))
+#KS goodness of fit test, low probability that the genetic and geographic distance matrices are the same distribution. 
+ks.test(Dgenind, Dgeo)
+ks.test(Dgeo, plnorm)
+ks.test(Dgenind, plnorm)
+ks.test(Dgenind, punif)
 
 ```
 
@@ -180,6 +218,46 @@ image(dens, col=transp(myPal(300),.7), add=TRUE)
 abline(lm(Dgenind~Dgeo))
 title("Isolation by distance plot")
 ```
+Simluations of IBD
+```{r}
+simulation <- "phfo_1530indiv"
+sim_filenames <- list.files("Q:/Research/Stats & Software/EasyPOP")
+phfo_15 <- sim_filenames[grep(simulation, sim_filenames)]
+phfo_15 <- phfo_15[grep(".gen", phfo_15)]
+
+genepop_sims <- list()
+for(i in 1:(length(phfo_15))){
+  #print(paste("Q:/Research/Stats & Software/EasyPOP/",
+   #                                       phfo_15[i],
+    #                                      sep=""))
+  genepop_sims[[i]] <- read.genepop(paste("Q:/Research/Stats & Software/EasyPOP/",
+                                          phfo_15[i],
+                                          sep=""))
+}
+
+# So now can do measurements on this list
+genepop_sims[[1]] # 15,000 individuals; 12 loci; 71 alleles; size: 5 Mb
+phall #425 individuals; 12 loci; 113 alleles; size: 243.5 Kb
+
+dist_sim <- list()
+for(i in 1:(length(genepop_sims))){
+  dist_sim[[i]] <- dist(genepop_sims[[i]][floor(runif(425, 1,450))]) #want 425 indiviuals to match
+}
+
+
+ibd_sims <- list()
+for(i in 1:(length(dist_sim))){
+  ibd_sims[[i]] <- mantel.randtest(Dgeo, dist_sim[[i]])
+}
+
+plot(Dgeo, dist_sim[[1]])
+points(jitter(Dgeo),dist_sim[[2]], col="red", cex=0.5)
+points(jitter(Dgeo),dist_sim[[3]], col="blue", cex=0.5)
+points(jitter(Dgeo),dist_sim[[4]], col="green", cex=0.5)
+
+```
+
+
 
 #Isolation by distance   
 ```{r}
@@ -288,6 +366,7 @@ abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
 
 
 par(op)
+
 ```
 
 
@@ -680,6 +759,9 @@ CIComp2 <- aggregate(Comp.2~FID, data=pcaphfo.bioclim.soils,
 ```{r}
 jpeg(paste("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/PCA_Bio1_7_9_12.jpg"), width=150, height=150, units="mm", res=300)
 
+layout(matrix(c(2,4,1,3),2,2, byrow=TRUE), widths=c(3,1), heights=c(1,3), TRUE)
+par(mai=c(1,1,.1,.1)) #margins for plot 1
+
 plot(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==4],
      pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==4], 
      col=rgb(0,0,0,0.05),pch=16,
@@ -719,6 +801,56 @@ legend("bottomright",
  #      col=c("red","blue","goldenrod"),
        legend = c("Jackson","Larimer","Grand")) 
 #text(Comp.2~Comp.1, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID<4,], labels = pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID<4],cex=0.75)
+
+#plot 2 Comp.1
+par(mai=c(.1,1,.1,.1)) 
+plot(density(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==4]),
+     xaxt='n',
+     main="",
+     col=rgb(0,0,0,0.15),
+     ylim=c(0,1.6))
+lines(density(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==1]),
+      lty=1)
+lines(density(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==2]),
+      lty=2)
+lines(density(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==3]),
+      lty=3)
+
+yhist4 <- hist(pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==4], plot=FALSE)
+yhist1 <- hist(pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==1], plot=FALSE)
+yhist2 <- hist(pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==2], plot=FALSE)
+yhist3 <- hist(pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==3], plot=FALSE)
+
+#plot 3 Comp.2
+par(mai=c(1,.1,.1,.1)) 
+plot(yhist4$density, seq(from=min(yhist4$breaks),
+                         to=max(yhist4$breaks),
+                         length.out = length(yhist4$density)),
+     yaxt='n',
+     main="",
+     type="l",
+     col=rgb(0,0,0,0.15),
+     xlim=c(0,7.5), xlab="Density")
+lines(yhist1$density, seq(from=min(yhist1$breaks),
+                         to=max(yhist1$breaks),
+                         length.out = length(yhist1$density)),
+     lty=1, main="",xaxt='n')
+lines(yhist2$density, seq(from=min(yhist2$breaks),
+                         to=max(yhist2$breaks),
+                         length.out = length(yhist2$density)),
+      lty=2)
+lines(yhist3$density, seq(from=min(yhist3$breaks),
+                         to=max(yhist3$breaks),
+                         length.out = length(yhist3$density)),
+      lty=3)
+
+#Line legend
+par(mai=c(.1,.1,.1,.1))
+plot(1:6,1:6, type='n', axes=FALSE, main="")
+legend("topright", legend =c("Jackson","Larimer","Grand","Background"),
+       lty=c(1:3,1),
+       col=c(rep("black",3),"grey"),
+       bty='n')
 
 dev.off()
 ```
