@@ -167,10 +167,8 @@ plot(ibd)
 ibdmax <- mantel.randtest(Dgeo,Dgenind.maximum)
 ibdmax
 
-##START HERE!
-# By group becuase hisorty and soil types might influence (Meirmans et. al. XXXX)
-Dgeo_Jackson <-dist(phall$other$xy[phall@pop %in% c("")])
-
+vegan::mantel(Dgeo,Dgenind)
+vegan::mantel(Dgeo.noTC,Dgenind.noTC)
 
 #vegan version
 vegan::mantel(Dgeo,Dgenind, permutations = 9999)
@@ -227,8 +225,8 @@ labels2[426:(length(labels2))] <- NA
 labels3 <- labels2
 labels3 <- levels(phall@pop)[labels3]
 
-plot(Dgeo,Dgenind, col=colslabels,pch=as.numeric(colslabels), cex=0.5) #the lower triangle by lower triangle
-text(Dgeo,jitter(rep(1,length(Dgenind)),factor=5), 
+plot(jitter(Dgeo),Dgenind, col=colslabels,pch=as.numeric(colslabels), cex=0.75) #the lower triangle by lower triangle
+text(Dgeo,jitter(rep(1,length(Dgenind)),factor=15), 
      labels=labels3, cex=0.75, col=labels2)
 abline(lm(Dgenind~Dgeo))
 #legend("bottomright", legend = unique(phall@pop), col=as.numeric(labels2),pch=16)
@@ -438,69 +436,6 @@ both PCNM and packfor
 <http://popgen.nescent.org/2015-05-18-Dist-SNP.html#section-2.-individual-genetic-distance-euclidean-distance-dist-adegenet> 
 
 
-```{r}
-plot(Dgeo,Dgenind)
-abline(lm(Dgenind~Dgeo), col="red")
-
-distgenEUCL <- dist(phall, method = "euclidean", diag = FALSE, upper = FALSE, p = 2)
-hist(distgenEUCL)
-
-# loci with at least one sample missing
-phall.loci <- genind2loci(phall)
-distgenDIFF <- dist.gene(phall.loci, method="pairwise", pairwise.deletion=FALSE, variance=FALSE)
-hist(distgenDIFF)
-
-op <- par(no.readonly = TRUE)
-#Percent missing data per population
-missing_data <- info_table(phall, type="missing")
-sum(missing_data["Total",-13]>0) #10
-barchart(missing_data["Total",-13], ylab="Locus", xlab="Percent Missing")
-#stripchart(missing_data["Total",-13],method="jitter")
-#rug(missing_data["Total",-13])
-```
-Keep loci even if one missing value
-```{r}
-distgenDIFF <- dist.gene(phall.loci, method="pairwise", pairwise.deletion = TRUE, variance = FALSE)
-#Number of allelic differences between two individuals diss.dist from poppr    
-distgenDiSS <- diss.dist(phall, percent=FALSE, mat=FALSE)
-
-#Compare how different genetic distances deal with missing data and which might want to use in Mantel.test   
-phall.genepop <- genind2genpop(phall)
-
-#Maybe not the euclidian one, Nei's is not. So the second one? 
-ibd.ind <- mantel.randtest(Dgeo, distgenDIFF)
-ibd.ind
-phall.genepop <- genind2genpop(phall)
-
-
-#Classical IBD means clines of genetic differentiation to cause a correlation, or distant and differentiated populations can also result in this pattern
-
-layout(matrix(c(1,2,3,4,5,5),2,3,byrow=TRUE))
-
-hist(distgenDiSS)
-hist(distgenDIFF)
-boxplot(distgenEUCL,distgenDIFF,distgenDiSS,dist.genpop(phall.genepop,method=2)) #the last is among populations, not individuals
-plot(ibd.ind)
-plot(Dgeo, distgenDIFF)
-abline(lm(distgenDIFF~Dgeo), col="red", lty=2)
-
-
-par(op)
-
-```
-
-
-
-Visualize density 
-```{r}
-dens <- kde2d(Dgeo,distgenDIFF, n=300)
-myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
-plot(Dgeo, distgenDIFF, pch=20,cex=.5)
-image(dens, col=transp(myPal(300),.7), add=TRUE)
-abline(lm(distgenDIFF~Dgeo))
-title("Isolation by distance plot")
-
-```
 
 soils <https://www.nrcs.usda.gov/wps/portal/nrcs/detail/soils/survey/?cid=nrcs142p2_053627>
 Data from USDA <http://websoilsurvey.nrcs.usda.gov/app/WebSoilSurvey.aspx>   
@@ -904,23 +839,16 @@ arrows(meanComp1[4,2],meanComp2[4,2],
       length=0.1,angle=90)
 points(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==1],
      pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==1], 
-#     col="red",
-#     pch=as.numeric((pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID==1])),
      pch = 1)
 points(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==2],
      pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==2], 
-     #col="blue", #pch=as.numeric(pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID==2]))
      pch=2)
 points(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==3],
      pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==3],
-     #col="goldenrod", 
      pch=3)
-legend("bottomright",
-       #pch=c(as.numeric(pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID==1]),as.numeric(pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID==2]),16),col=c(rep("red",11),rep("blue",3),"goldenrod"),
+legend("topright",
        pch=c(1,2,3),
- #      col=c("red","blue","goldenrod"),
        legend = c("Jackson","Larimer","Grand")) 
-#text(Comp.2~Comp.1, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID<4,], labels = pcaphfo.bioclim.soils$Code[pcaphfo.bioclim.soils$FID<4],cex=0.75)
 
 #plot 2 Comp.1
 par(mai=c(.1,1,.1,.1)) 
@@ -928,7 +856,7 @@ plot(density(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==4]),
      xaxt='n',
      main="",
      col=rgb(0,0,0,0.15),
-     ylim=c(0,1.6))
+     ylim=c(0,3))
 lines(density(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==1]),
       lty=1)
 lines(density(pcaphfo.bioclim.soils$Comp.1[pcaphfo.bioclim.soils$FID==2]),
@@ -940,6 +868,10 @@ yhist4 <- hist(pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==4], plot=
 yhist1 <- hist(pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==1], plot=FALSE)
 yhist2 <- hist(pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==2], plot=FALSE)
 yhist3 <- hist(pcaphfo.bioclim.soils$Comp.2[pcaphfo.bioclim.soils$FID==3], plot=FALSE)
+
+
+#trail plot 3
+
 
 #plot 3 Comp.2
 par(mai=c(1,.1,.1,.1)) 
@@ -973,6 +905,140 @@ legend("topright", legend =c("Jackson","Larimer","Grand","Background"),
        bty='n')
 
 dev.off()
+```
+
+```{r}
+marginal_plot = function(x, y, group = NULL, data = NULL, lm_show = FALSE, lm_formula = y ~ x, bw = "nrd0", adjust = 1, alpha = 1, plot_legend = T, ...){
+  require(scales)
+  ###############
+  # Plots a scatterplot with marginal probability density functions for x and y. 
+  # Data may be grouped or ungrouped. 
+  # For each group, a linear fit can be plotted. It is hidden by default, but can be shown by providing lm_show = TRUE.
+  # The model can be modified using the 'lm_formula' argument.
+  # The 'bw' and 'adjust' argument specify the granularity used for estimating probability density functions. See ?density for more information.
+  # For large datasets, opacity may be decreased by setting alpha to a value between 0 and 1.
+  # Additional graphical parameters are passed to the main plot, so you can customize axis labels, titles etc.
+  ###############
+  moreargs = eval(substitute(list(...)))
+  
+  # prepare consistent df
+  if(missing(group)){
+    if(missing(data)){
+      if(length(x) != length(y)){stop("Length of arguments not equal")}
+      data = data.frame(x = as.numeric(x), y = as.numeric(y))
+    } else {
+      data = data.frame(x = as.numeric(data[,deparse(substitute(x))]), 
+                        y = as.numeric(data[,deparse(substitute(y))]))
+    }
+    if(sum(!complete.cases(data)) > 0){
+      warning(sprintf("Removed %i rows with missing data", sum(!complete.cases(data))))
+      data = data[complete.cases(data),]
+    }
+    group_colors = "black"
+  } else {
+    if(missing(data)){
+      if(length(x) != length(y) | length(x) != length(group)){stop("Length of arguments not equal")}
+      data = data.frame(x = as.numeric(x), y = as.numeric(y), group = as.factor(group))
+    } else {
+      data = data.frame(x = as.numeric(data[,deparse(substitute(x))]), 
+                        y = as.numeric(data[,deparse(substitute(y))]),
+                        group = as.factor(data[,deparse(substitute(group))]))
+    }
+    if(sum(!complete.cases(data)) > 0){
+      warning(sprintf("Removed %i rows with missing data", sum(!complete.cases(data))))
+      data = data[complete.cases(data),]
+    }
+    data = subset(data, group %in% names(which(table(data$group) > 5)))
+    data$group = droplevels(data$group)
+    group_colors = rainbow(length(unique(data$group)))
+  } 
+  
+  # log-transform data (this is need for correct plotting of density functions)
+  if(!is.null(moreargs$log)){
+    if(!moreargs$log %in% c("y", "x", "yx", "xy")){
+      warning("Ignoring invalid 'log' argument. Use 'y', 'x', 'yx' or 'xy.")
+    } else {
+      data = data[apply(data[unlist(strsplit(moreargs$log, ""))], 1, function(x) !any(x <= 0)), ]
+      data[,unlist(strsplit(moreargs$log, ""))] = log10(data[,unlist(strsplit(moreargs$log, ""))])
+    }
+    moreargs$log = NULL # remove to prevent double logarithm when plotting
+  }
+  
+  # Catch unwanted user inputs
+  if(!is.null(moreargs$col)){moreargs$col = NULL}
+  if(!is.null(moreargs$type)){moreargs$type = "p"}
+  
+  # get some default plotting arguments
+  if(is.null(moreargs$xlim)){moreargs$xlim = range(data$x)} 
+  if(is.null(moreargs$ylim)){moreargs$ylim = range(data$y)}
+  if(is.null(moreargs$xlab)){moreargs$xlab = deparse(substitute(x))}
+  if(is.null(moreargs$ylab)){moreargs$ylab = deparse(substitute(y))}
+  if(is.null(moreargs$las)){moreargs$las = 1} 
+  
+  # plotting
+  tryCatch(expr = {
+    ifelse(!is.null(data$group), data_split <- split(data, data$group), data_split <- list(data))
+    orig_par = par(no.readonly = T)
+    par(mar = c(0.25,5,1,0))
+    layout(matrix(1:4, nrow = 2, byrow = T), widths = c(10,3), heights = c(3,10))
+    
+    # upper density plot
+    plot(NULL, type = "n", xlim = moreargs$xlim, ylab = "density",
+         ylim = c(0, max(sapply(data_split, function(group_set) max(density(group_set$x, bw = bw)$y)))), main = NA, axes = F)
+    axis(2, las = 1)
+    mapply(function(group_set, group_color){lines(density(group_set$x, bw = bw, adjust = adjust), col = group_color, lwd = 2)}, data_split, group_colors)
+    
+    # legend
+    par(mar = c(0.25,0.25,0,0))
+    plot.new()
+    if(!missing(group) & plot_legend){
+      legend("center", levels(data$group), fill = group_colors, border = group_colors, bty = "n", title = deparse(substitute(group)), title.adj = 0.1)
+    }
+    
+    # main plot
+    par(mar = c(4,5,0,0))
+    if(missing(group)){
+      do.call(plot, c(list(x = quote(data$x), y = quote(data$y), col = quote(scales::alpha("black", alpha))), moreargs))
+    } else {
+      do.call(plot, c(list(x = quote(data$x), y = quote(data$y), col = quote(scales::alpha(group_colors[data$group], alpha))), moreargs))
+    }
+    axis(3, labels = F, tck = 0.01)
+    axis(4, labels = F, tck = 0.01)
+    box()
+    
+    if(lm_show == TRUE & !is.null(lm_formula)){
+      mapply(function(group_set, group_color){
+        lm_tmp = lm(lm_formula, data = group_set)
+        x_coords = seq(min(group_set$x), max(group_set$x), length.out = 100)
+        y_coords = predict(lm_tmp, newdata = data.frame(x = x_coords))
+        lines(x = x_coords, y = y_coords, col = group_color, lwd = 2.5)
+      }, data_split, rgb(t(ceiling(col2rgb(group_colors)*0.8)), maxColorValue = 255))
+    }
+    
+    # right density plot
+    par(mar = c(4,0.25,0,1))
+    plot(NULL, type = "n", ylim = moreargs$ylim, xlim = c(0, max(sapply(data_split, function(group_set) max(density(group_set$y, bw = bw)$y)))), main = NA, axes = F, xlab = "density")
+    mapply(function(group_set, group_color){lines(x = density(group_set$y, bw = bw, adjust = adjust)$y, y = density(group_set$y, bw = bw)$x, col = group_color, lwd = 2)}, data_split, group_colors)
+    axis(1)
+  }, finally = {
+    par(orig_par)
+  })
+}
+```
+
+
+```{r}
+marginal_plot(x=AWS025, y=pHwater, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID!=4,],
+              group=FID,
+              xlab="Avaliable surface water",
+              ylab="pH")
+```
+
+```{r}
+marginal_plot(x=Comp.1, y=Comp.2, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID<3,],
+              group=FID,
+              xlab="Comp 1",
+              ylab="Comp 2")
 ```
 
 ```{r}
