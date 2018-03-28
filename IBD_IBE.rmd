@@ -41,6 +41,7 @@ library(car)
 library(rgeos)
 #library(diveRsity)
 library(ggmap)
+library(hierfstat)
 
 ```
 
@@ -260,6 +261,16 @@ Dgeo_Jackson <- dist(phJackson$other$xy)
 Dgeo_Larimer <- dist(phLarimer$other$xy)
 
 Dgeo_JacksonandLarimer <- dist(phJacksonandLarimer$other$xy)
+
+#hierfstat 
+Grand.hf <- genind2hierfstat(phGrand)
+Grand.dist.hf <- varcomp.glob(Grand.hf$pop, Grand.hf[,-1]) #nope, only one population
+Jackson.hf <- genind2hierfstat(phJackson)
+Jackson.dist.hf <- varcomp.glob(Jackson.hf,Jackson.hf[,-1] )
+
+
+matFst <- pairwise.fst(phall)
+
 
 plot(phall$other$xy$lon,phall$other$xy$lat)
 points(phGrand$other$xy$lon,phGrand$other$xy$lat, col="red", cex=2)
