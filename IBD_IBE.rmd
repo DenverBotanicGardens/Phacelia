@@ -93,6 +93,8 @@ nrow(phfo.gen) #451 - some individuals were thrown out for the genetic data.
 table(phfo.gen$Code)
 #Still match these locaitons with the individuals from phall
 table(phall@pop)
+phfo.gen$Code <- factor(phfo.gen$Code, levels=levels(phall@pop))
+
 
 phfo.indloc <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/GenAlExAnalyses_Nov2017/LatLon_PhfoData_Nov2017.csv")
 
@@ -103,16 +105,33 @@ curlev[curlev=="F"] <- "FC"
 curlev[curlev=="B"] <- "BR"
 levels(phfo.indloc$SimpleCode) <- curlev
 
+# help make levels match?
+phfo.indloc$SimpleCode <- factor(phfo.indloc$SimpleCode, levels= levels(phall@pop))
+table(phfo.indloc$SimpleCode)
 
 #Morphology  
 phfo.loc <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/geoloc_ph.csv")
-table(phfo.loc$Population.Code)
+table(phfo.loc$Population.Code) #only collections from FC, RN, BR, AS, and TC
 
+phfo.loc$Population.Code <- factor(phfo.loc$Population.Code, levels=levels(phall@pop))
+table(phall@pop)
+table(phfo.indloc$SimpleCode)
 
 #phall are individuals from phfo.indloc
 # So take the SimpleCode and IndNum from phfo.indloc and the Northing and Easting from phfo.gen matching Code and Ind.
-phfo.UTM <- merge(phfo.gen,phfo.indloc[,c(1,3:4)],
+phfo.gen$Code <- as.character(phfo.gen$Code)
+phfo.indloc$SimpleCode <- as.character(phfo.indloc$SimpleCode)
+
+
+
+#Want to keep order of phall which might come from phfo.indloc
+phfo.indloc$ID <- 1:nrow(phfo.indloc)
+phfo.UTM <- merge(phfo.gen,phfo.indloc[,c(1,3:5)],
                   by.x=c("Code","Ind."),by.y=c("SimpleCode","IndNum"))
+
+#Back to phfo.indloc order
+phfo.UTM <- phfo.UTM[with(phfo.UTM, order(phfo.UTM$ID)),]
+phfo.UTM$Code <- factor(phfo.UTM$Code, levels=levels(phall@pop))
 table(phfo.UTM$Code)
 sum(table(phfo.UTM$Code)) #425
 
@@ -186,18 +205,32 @@ save(output_pw_phfo, file="P:/hackathon/Phacelia/output_pw_phfo.rda")
 ```{r}
 load("P:/hackathon/Phacelia/output_pw_phfo.rda")
 
-library(reshape2)
-dgeo.df <- data.matrix(Dgeo)
-dgeo.df <- data.frame(dgeo.df)
-names(dgeo.df)<-phall@pop
-dgeo.df$Pair <- phall@pop
-dgeo.melt <- melt(dgeo.df)
+colnums <- c()
+for(i in 2:425){
+  colnums <- c(colnums,i:425)
+}
 
-ggplot(dgeo.melt, aes(x=variable,y=value))+
-  geom_boxplot(aes(fill=variable))
+colslabels <- phall@pop[c(colnums)]
+firstones <- rle(as.numeric(colslabels)) #want to label once for each group
+labelonce <- apply(do.call(cbind,firstones),1,FUN=function(x){
+  label<-x[2]
+  NAs<-rep(NA,x[1]-1)
+  c(label,NAs)   #if it's by down each column?
+})
+labels <- do.call(c,labelonce)
+str(as.numeric(labels))
 
-plot(Dgeo,Dgenind, col=as.factor(phall@pop))
+labels2 <- labels 
+labels2[426:(length(labels2))] <- NA
+
+labels3 <- labels2
+labels3 <- levels(phall@pop)[labels3]
+
+plot(Dgeo,Dgenind, col=colslabels,pch=as.numeric(colslabels), cex=0.5) #the lower triangle by lower triangle
+text(Dgeo,jitter(rep(1,length(Dgenind)),factor=5), 
+     labels=labels3, cex=0.75, col=labels2)
 abline(lm(Dgenind~Dgeo))
+#legend("bottomright", legend = unique(phall@pop), col=as.numeric(labels2),pch=16)
 
 summary(lm(Dgenind~Dgeo))
 
@@ -209,15 +242,91 @@ ks.test(Dgenind, plnorm)
 ks.test(Dgenind, punif)
 
 ```
+```{r}
+phGrand <- phall[phall@pop == "TC"] #30
+phJackson <- phall[!(phall@pop %in% c("FC","HN","HS","TC"))] #330
+phLarimer <- phall[(phall@pop %in% c("FC","HN","HS"))] #65
+
+phJacksonandLarimer <- phall[phall@pop != "TC"]
+
+Dgenind_Grand <- dist(phGrand@tab)
+Dgenind_Jackson <- dist(phJackson@tab)
+Dgenind_Larimer <- dist(phLarimer@tab)
+
+Dgenind_JacksonandLarimer <- dist(phJacksonandLarimer@tab)
+
+Dgeo_Grand <- dist(phGrand$other$xy)
+Dgeo_Jackson <- dist(phJackson$other$xy)
+Dgeo_Larimer <- dist(phLarimer$other$xy)
+
+Dgeo_JacksonandLarimer <- dist(phJacksonandLarimer$other$xy)
+
+plot(phall$other$xy$lon,phall$other$xy$lat)
+points(phGrand$other$xy$lon,phGrand$other$xy$lat, col="red", cex=2)
+points(phJackson$other$xy$lon,phJackson$other$xy$lat, col="blue", cex=1.5)
+points(phLarimer$other$xy$lon,phLarimer$other$xy$lat, col="green", cex=2)
+points(phJacksonandLarimer$other$xy$lon,phJacksonandLarimer$other$xy$lat, col="purple", cex=5)
+```
 
 ```{r}
-dens <-kde2d(Dgeo,Dgenind, n=300)
+layout(matrix(c(2,3,5,
+                4,1,6),2,3,byrow=TRUE))
+
+#plot 1
+par(mar=c(2,4.5,4.5,0.5))
+dens <-kde2d(Dgeo,Dgenind, n=100)
 myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
-plot(Dgeo, Dgenind, pch=20,cex=.5)
+plot(Dgeo, Dgenind, pch=20,cex=.5, xlim=c(0,1),ylim=c(0,10), ylab="", xlab="meters")
 image(dens, col=transp(myPal(300),.7), add=TRUE)
 abline(lm(Dgenind~Dgeo))
 title("Isolation by distance plot")
+
+#plot 2
+par(mar=c(1,4.5,4.5,0.5))
+dens <-kde2d(Dgeo_Jackson,Dgenind_Jackson, n=100)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo_Jackson, Dgenind_Jackson, pch=20,cex=.5, xlab="",ylab="Euclidean distance")
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind_Jackson~Dgeo_Jackson))
+title("Jackson County")
+
+#plot 3
+par(mar=c(1,4.5,4.5,0.5))
+dens <-kde2d(Dgeo_Larimer,Dgenind_Larimer, n=100)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo_Larimer, Dgenind_Larimer, pch=20,cex=.5, xlab="",ylab="")
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind_Larimer~Dgeo_Larimer))
+title("Larimer County")
+
+#plot 4
+par(mar=c(2,4.5,4.5,0.5))
+dens <-kde2d(Dgeo_Grand,Dgenind_Grand, n=100)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo_Grand, Dgenind_Grand, pch=20,cex=.5, xlab="meters",ylab="Euclidean distance" )
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind_Grand~Dgeo_Grand))
+title("Grand County")
+
+#plot 5
+par(mar=c(2,4.5,4.5,0.5))
+dens <-kde2d(Dgeo_JacksonandLarimer,Dgenind_JacksonandLarimer, n=300)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo_JacksonandLarimer, Dgenind_JacksonandLarimer, pch=20,cex=.5, xlab="meters",ylab="Euclidean distance" )
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind_JacksonandLarimer~Dgeo_JacksonandLarimer))
+title("Jackson and Larimer County")
+
+#plot 6
+plot(phall$other$xy$lon,phall$other$xy$lat)
+points(phGrand$other$xy$lon,phGrand$other$xy$lat, col="red", cex=2)
+points(phJackson$other$xy$lon,phJackson$other$xy$lat, col="blue", cex=1.5)
+points(phLarimer$other$xy$lon,phLarimer$other$xy$lat, col="green", cex=2)
+points(phJacksonandLarimer$other$xy$lon,phJacksonandLarimer$other$xy$lat, col="purple", cex=5)
 ```
+
+. ** Suggestion is a "partial Mantel testing association between the matrix of genetic distances, a model matrix of cluster membership, with matrix of geographical distances as a covariate** However, with a barrier, this test is not conservative, will still claim isolation by distance (when there is none). 
+
 Simluations of IBD
 ```{r}
 simulation <- "phfo_1530indiv"
