@@ -95,7 +95,9 @@ library(vegan)
   
   
 
-Landmark data
+Landmark data   
+Figure out why RN appears to be swapped, not sure that's the problem    
+"Q:\Research\Images\Phacelia formosula\Phacelia Morphometric Pics\Results"  
 ```{r}
 sites <- c("AS","BR","FR","RN","TC")
 
@@ -171,6 +173,7 @@ out.procf.site <- lapply(new.dat.list, function(x) {
   })
 
 out.procf.site[[1]]$n
+
 
 par(mfrow=c(3,2))
 par(mar=c(2,2,2,2))
@@ -452,9 +455,26 @@ plotshapes(new.dat.list2[[1]])
 plotshapes(new.dat.list2[[2]])
 plotshapes(new.dat.list2[[3]])
 
+new.dat.list2[[1]]
+
+# Generalised Procrustes analysis
 out.procf.species <- lapply(new.dat.list2, function(x){
   procGPA(x)
 })
+```
+
+```{r}
+
+
+layout(matrix(c(1,2,3), 1,3, byrow=FALSE),
+       widths = c(6,6,6), heights = c(1))
+
+for(i in 1:3){
+  plotshapes(out.procf.species[[i]]$rotated)
+}
+```
+
+```{r}
 
 par(mfrow=c(1,3))
 par(mar=c(2,2,2,2))
