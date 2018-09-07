@@ -64,7 +64,7 @@ ph.dist
 
 #Dgeo <- spatialdist.noTC
 
-ggmap(get_map(c(-107,40.25,-105.25,41)))+
+ggmap(get_map(c(-107,40,-105.25,41)))+
   geom_point(data=ph.dist, aes(Easting.1,Northing.1))
 
 ```
@@ -168,7 +168,6 @@ ibdmax <- mantel.randtest(Dgeo,Dgenind.maximum)
 ibdmax
 
 vegan::mantel(Dgeo,Dgenind)
-vegan::mantel(Dgeo.noTC,Dgenind.noTC)
 
 #vegan version
 vegan::mantel(Dgeo,Dgenind, permutations = 9999)
@@ -185,6 +184,7 @@ plot(density(eigens$values), main="variance")
 points(max(eigens$values),0.1) #2757.032 that's some crazy variance
 ```
 
+Takes very long time, that's why output saved
 strataG
 ```{r, eval=FALSE}
 gtypes_phfo <- genind2gtypes(phall)
@@ -262,7 +262,7 @@ Dgeo_JacksonandLarimer <- dist(phJacksonandLarimer$other$xy)
 
 #hierfstat 
 Grand.hf <- genind2hierfstat(phGrand)
-Grand.dist.hf <- varcomp.glob(Grand.hf$pop, Grand.hf[,-1]) #nope, only one population
+#Grand.dist.hf <- varcomp.glob(Grand.hf$pop, Grand.hf[,-1]) #nope, only one population
 Jackson.hf <- genind2hierfstat(phJackson)
 Jackson.dist.hf <- varcomp.glob(Jackson.hf,Jackson.hf[,-1] )
 
@@ -388,6 +388,9 @@ ibd.noTC <- mantel.randtest(Dgenind.noTC,Dgeo.noTC) #OH dear, Dgen is 15 populat
 ibd.noTC
 
 plot(ibd.noTC)
+
+
+vegan::mantel(Dgeo.noTC,Dgenind.noTC)
 
 ibdmax <- mantel.randtest(Dgeo,Dgenind.maximum)
 ibdmax
@@ -619,6 +622,7 @@ points(bgd)
 
 
 #Soils   
+ 
 Steps to get soil layers <"Q:\Research\All_Projects_by_Species\Phacelia SPECIES\Phacelia_formosula\Phacelia formosula_abiotic\Modelling\Soil_layer_data_extraction\Notes_on_soil_data_file_making.docx">   
 ```{r, echo=FALSE}
 filenames <- list.files("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers")
@@ -766,6 +770,7 @@ cor_matrix <- cor(phfo.bioclim.soils[,c(21:39)])
 corrplot(cor_matrix, method="square", type="upper")
 
 ```
+
 Bio12:19 are all highly correlated (>0.5) so for simplicity, just keep Bio12, annual precipitation  
 
 Bio8 and 12 are still correlated, (mean temp of wettest quarter) so 8 is out  
@@ -774,13 +779,43 @@ Bio11 is problematic (correlated to 1,2,4,5, and 7)  Out
 Bio7 probably better than 4, 5 or 6
 
 bio2 out  
+
 ```{r}
-names(phfo.bioclim.soils[,c(21,27,29,32)])
-cor_matrix <- cor(phfo.bioclim.soils[,c(21,27,29,32)])
+
+cor_matrix <- cor(phfo.bioclim.soils[,c("bio1","bio7","bio9","bio12")])
 corrplot(cor_matrix, method="square", type="upper")
 
-forPCA <- phfo.bioclim.soils[,c(21,27,29,32)]
+forPCA <- phfo.bioclim.soils[,c("bio1","bio7","bio9","bio12")]
 ```
+
+2018-09-07 try getting rid if correlated over 75%
+
+
+```{r}
+
+cor(phfo.bioclim.soils[,c(22:40)])
+# 1 vs 5 and 1 vs. 10, keep 1, 5 and 10 out
+names(phfo.bioclim.soils[,c(22:25,27:30,32:40)])
+cor(phfo.bioclim.soils[,c(22:25,27:30,32:40)])
+
+# 2 vs 4, 2 vs 7, 2 vs 7; sure keep 2
+names(phfo.bioclim.soils[,c(22:24,27,29:30,32:40)])
+cor(phfo.bioclim.soils[,c(22:24,27,29:30,32:40)])
+
+# 3 vs 12, 14, 15, 17, 19: keep 12, 12 vs. 3, 8,13:19
+names(phfo.bioclim.soils[,c(22:23,27,29:30,32:33)])
+cor(phfo.bioclim.soils[,c(22:23,27,29:30,32:33)])
+
+
+# 2 vs 6; keep 6; 8 vs 12, keep 12, keep 11, not 6
+names(phfo.bioclim.soils[,c(22,30,32:33)])
+cor(phfo.bioclim.soils[,c(22,30,32:33)])
+
+cor_matrix <- cor(phfo.bioclim.soils[,c("bio1",  "bio9",  "bio11", "bio12")])
+corrplot(cor_matrix, method="square", type="upper")
+
+```
+
 
 Principal components Analysis
 ```{r}
@@ -1026,6 +1061,13 @@ marginal_plot = function(x, y, group = NULL, data = NULL, lm_show = FALSE, lm_fo
 }
 ```
 
+
+```{r}
+marginal_plot(x=SurfText, y=Dep2WatTbl, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID!=4,],
+              group=FID,
+              xlab="Surface Texture",
+              ylab="Depth to water table")
+```
 
 ```{r}
 marginal_plot(x=AWS025, y=pHwater, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID!=4,],
