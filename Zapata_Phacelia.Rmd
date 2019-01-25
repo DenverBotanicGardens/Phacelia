@@ -41,7 +41,34 @@ phfocc <- phfo[complete.cases(phfo),] #8 rows out
 pairs(phfocc[,-(1:7)]) #plant height and width are phfocc[,8:9]
 cor(phfocc[,-(1:7)])
 
+# 1/25/2019 remove TC
+phfocc_noTC <- phfo[complete.cases(phfo),]
+phfocc_noTC <- phfocc_noTC[phfocc_noTC$Population.Code != "TC",]
+pairs(phfocc_noTC[,-(1:7)]) #plant height and width are phfocc[,8:9]
+cor(phfocc_noTC[,-(1:7)])
 
+names(phfocc_noTC[,-(1:7),])
+
+pa_noTC <- pca(phfocc_noTC[,-(1:7)], cor = TRUE)
+pa2_noTC <- pca(phfocc_noTC[,-(1:9)], cor = TRUE)
+
+summary(pa_noTC)
+loadings(pa_noTC)
+summary(pa2_noTC)
+loadings(pa2_noTC)
+
+phfocc_noTC <- data.frame(phfocc_noTC, pa_noTC$scores)
+phfocc2_noTC <- data.frame(phfocc_noTC, pa2_noTC$scores)
+
+ggplot(phfocc_noTC, aes(PC1, PC2, colour = Population.Code))+
+  geom_point()+
+  stat_ellipse()+
+  theme_bw()
+
+#################### 1/25/2019 ####################### END
+```
+
+```{r}
 #has plant height and width
 pa <- pca(phfocc[,-(1:7)], cor = TRUE)
 
