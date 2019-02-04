@@ -316,7 +316,8 @@ phfo <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_
 head(phfo)
 phfo <- phfo[,-(18:19)]
 phfo <- phfo[!grepl("TC", phfo$Population.Code),]
-
+phfo$County <- "Jackson"
+phfo$County[phfo$Population.Code == "FC"] <- "Larimer"
 
 include <- names(phfo)[c(10:17)]
 
@@ -332,6 +333,16 @@ ord.xy5 <- data.frame(phfo,ord.5$points)
 jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/Ordination_noTC.jpg",
      width=200, height=125,units='mm', res=300)
 ggplot(ord.xy5, aes(X1,X2,colour=Population.Code, shape=Population.Code))+
+  geom_point()+
+  stat_ellipse()+
+  theme_bw()+
+  scale_colour_grey()
+dev.off()
+
+# By county
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/OrdinationCounty_noTC.jpg",
+     width=200, height=125,units='mm', res=300)
+ggplot(ord.xy5, aes(X1,X2,colour=County, shape=County))+
   geom_point()+
   stat_ellipse()+
   theme_bw()+
@@ -412,6 +423,10 @@ ggplot(ord.merged, aes(X1,X2,colour=Population.Code))+
 
 TukeyHSD(aov(ord.merged$X1 ~ ord.merged$Population.Code))
 
+```
+
+
+```{r}
 # Hausdorf & Hennig followed: 4 dimensions retained so no more than five individuals needed to recognize a cluster
 head(wide.ldms)
 wide.ldms1 <- wide.ldms[-(grep("TC", wide.ldms$Ind)),]
@@ -427,11 +442,14 @@ code <- substr(wide.ldms1$Ind,1,2)
 ord.xy1 <- data.frame(wide.ldms1$Ind,ord$points,code)
 colnames(ord.xy1) <- c("Individual","X","Y","Site")
 
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/Landmarks_noTC.jpg",
+     width=170, height=125,units='mm', res=300)
 ggplot(ord.xy1, aes(X,Y,colour=Site))+
   geom_point()+
   stat_ellipse()+
-  theme_bw()
-
+  theme_bw()+
+  scale_color_grey()
+dev.off()
 #####
 
 
@@ -444,10 +462,14 @@ ord.1 <- isoMDS(ph.daisy)
 
 ord.xy.1 <- data.frame(ph.merg,ord.1$points)
 
-ggplot(ord.xy.1, aes(X1,X2,colour=Species))+
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/Species_noTC.jpg",
+     width=200, height=125,units='mm', res=300)
+ggplot(ord.xy.1, aes(X1,X2,colour=Species, shape=Species))+
   geom_point()+
   stat_ellipse()+
-  theme_bw()
+  theme_bw()+
+  scale_color_grey()
+dev.off()
 
 ###vegan vignette
 ord.meta <- metaMDS(ph.daisy)
