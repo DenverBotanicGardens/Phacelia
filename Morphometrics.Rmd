@@ -5,6 +5,13 @@ date: "November 11, 2016"
 output: pdf_document
 ---
 
+Ph manuscript/manusctip 20190109_JNeale conflicted copy... 
+
+also look at 20190123JPR.docx - where James made changes, more up to date but not Jenny's comments. 
+
+Take out P. gina glennea 
+dropbox: don't need microsat dat folder - phacelia fragment files zipped
+
 ```{r, eval=FALSE}
 #install.packages("shapes")
 library(shapes)
@@ -142,10 +149,15 @@ write.table(wide.TC[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Post
 #each column as a landmark
 head(ldms)
 
+ldms_noTC <- ldms[!grepl("TC",ldms$Ind),]
+
 wide.ldms <- reshape(ldms, idvar="Ind", timevar = "Ldm", direction = "wide")
+wide.ldms_noTC <- reshape(ldms_noTC, idvar="Ind", timevar = "Ldm", direction = "wide")
 
 head(wide.ldms)
-write.table(wide.ldms[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/Phfo_ldms.txt", col.names = FALSE, row.names = FALSE, quote=FALSE)
+# write.table(wide.ldms[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/Phfo_ldms.txt", col.names = FALSE, row.names = FALSE, quote=FALSE)
+
+write.table(wide.ldms_noTC[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/Phfo_ldms_noTC.txt", col.names = FALSE, row.names = FALSE, quote=FALSE)
 ```
 
 
@@ -155,16 +167,24 @@ write.table(wide.ldms[,-1], "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Po
 ```{r}
 k <- 21 #number of points
 m <- 2  #number of dimensions
-new.dat <- read.in("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/Phfo_ldms.txt",k,m)
+# new.dat <- read.in("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/Phfo_ldms.txt",k,m)
+new.dat_noTC <- read.in("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/Phfo_ldms_noTC.txt",k,m)
 
-plotshapes(new.dat)
-out.procf <- procGPA(new.dat)
+# plotshapes(new.dat)
+# out.procf <- procGPA(new.dat)
+# plotshapes(out.procf$rotated)
+
+plotshapes(new.dat_noTC)
+out.procf <- procGPA(new.dat_noTC)
 plotshapes(out.procf$rotated)
 
 shapepca(out.procf) #plots the first few PCs
 
 # by population
-new.dat.list <- lapply(c("wide_AS","wide_BR","wide_FC","wide_RN","wide_TC"), function(x){
+# new.dat.list <- lapply(c("wide_AS","wide_BR","wide_FC","wide_RN","wide_TC"), function(x){
+#   read.in(paste("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/",x,".txt", sep=""),k,m)
+# })
+new.dat.list <- lapply(c("wide_AS","wide_BR","wide_FC","wide_RN"), function(x){
   read.in(paste("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/",x,".txt", sep=""),k,m)
 })
 
@@ -173,21 +193,34 @@ out.procf.site <- lapply(new.dat.list, function(x) {
   })
 
 out.procf.site[[1]]$n
+length(out.procf.site)
 
+```
 
-par(mfrow=c(3,2))
-par(mar=c(2,2,2,2))
-lapply(out.procf.site, function(x){
-  plotshapes(x$rotated)
+```{r}
+op <- par(no.readonly=TRUE)
+par(op)
+titles <- c("AS","BR","FC","RN")
+
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/GeneralizedProcrustes_noTC.jpg",
+     width=200, height=200,units='mm', res=300)
+par(mar=c(2, 1.5, 2, 1) + 0.1)
+layout(matrix(c(1,2,3,4), 2,2, byrow=FALSE),
+             width=c(6,6,6,6), height=c(6,6,6,6))
+lapply(1:4, function(x){
+  plotshapes(out.procf.site[[x]]$rotated)
+  mtext(titles[x], side=3, line = .5)
 })
 
+dev.off()
+```
 
-
+```{r}
 # the Riemannian shape distance between the mean shapes
-sites
-comparisons <- t(combn(1:5,2))
-comparisons[10,][2]
-reimannian.site <- lapply(1:10, function(x){
+sites <- sites[!grepl("TC",sites)]
+comparisons <- t(combn(1:length(sites),2))
+comparisons[6,][2]
+reimannian.site <- lapply(1:6, function(x){
   r.s <- riemdist(out.procf.site[[ comparisons[x,][1] ]]$mshape, 
                   out.procf.site[[ comparisons[x,][2] ]]$mshape)
   out <- cbind(paste(sites[ comparisons[x,][1] ],sites[ comparisons[x,][2] ], sep="-"),
@@ -197,7 +230,7 @@ r.s <- do.call(rbind,reimannian.site)
 data.frame(r.s)
 
 ## The procustes distance
-proc.site <- lapply(1:10, function(x){
+proc.site <- lapply(1:6, function(x){
   p.s <- procdist(out.procf.site[[ comparisons[x,][1] ]]$mshape, 
                   out.procf.site[[ comparisons[x,][2] ]]$mshape)
   out <- cbind(paste(sites[ comparisons[x,][1] ],sites[ comparisons[x,][2] ], sep="-"),
@@ -208,7 +241,7 @@ p.s <- do.call(rbind, proc.site)
 p.s
 
 # tests for 2D mean shape difference, including boostrap and permutation tests
-testshapediff <- lapply(1:10, function(x){
+testshapediff <- lapply(1:6, function(x){
   resampletest(new.dat.list[[ comparisons[x,][1] ]],
                new.dat.list[[ comparisons[x,][2] ]]) #resamples = 200, bootstrap with replacement
   })
@@ -217,21 +250,21 @@ head(testshapediff[[1]])
 
 foo <- testshapediff
   
-foo1 <- lapply(1:10, function(x){
+foo1 <- lapply(1:6, function(x){
   out <- paste(sites[ comparisons[x,][1] ],sites[ comparisons[x,][2] ], sep="-")
   list(testshapediff[[x]],out)
   })
 
 foo1[[1]][[2]][1]
 
-do.call(rbind,lapply(foo1, function(f){
+write.table(do.call(rbind,lapply(foo1, function(f){
   data.frame(SiteComp = f[[2]][1],
              Lambda = round(f[[1]]$lambda,2),
              Lambda.pvlaue = round(f[[1]]$lambda.pvalue,2),
              James = round(f[[1]]$J,2),
              James.pvalue = round(f[[1]]$J.pvalue,2))
   })
-)
+),"clipboard", sep="\t", row.names=FALSE)
 
 
 
@@ -282,6 +315,8 @@ phfo <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Morphology Images_
 
 head(phfo)
 phfo <- phfo[,-(18:19)]
+phfo <- phfo[!grepl("TC", phfo$Population.Code),]
+
 
 include <- names(phfo)[c(10:17)]
 
@@ -294,13 +329,19 @@ phclust.all.5 <- hclust(ph.daisy.5)
 ord.5 <- isoMDS(ph.daisy.5)
 ord.xy5 <- data.frame(phfo,ord.5$points)
 
-ggplot(ord.xy5, aes(X1,X2,colour=Population.Code))+
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/Ordination_noTC.jpg",
+     width=200, height=125,units='mm', res=300)
+ggplot(ord.xy5, aes(X1,X2,colour=Population.Code, shape=Population.Code))+
   geom_point()+
   stat_ellipse()+
-  theme_bw()
+  theme_bw()+
+  scale_colour_grey()
+dev.off()
 
 TukeyHSD(aov(ord.xy5$X1 ~ ord.xy5$Population.Code))
+```
 
+```{r}
 
 ######## Without TC
 pairs(phfo[-grep("TC",phfo$Population.Code),include[-1]])
@@ -338,7 +379,7 @@ Merge morphometrics
 # Change population code to match
 
 unique(phfo$Population.Code)
-unique(code)
+
 wide.ldms$Ind <- sapply(wide.ldms$Ind, function(x) gsub("FR","FC",x))
 
 ph.merg <- merge(wide.ldms, phfo, by.x = "Ind", by.y = "Individual.ID")
@@ -361,10 +402,13 @@ plot(phclust.all, labels = ph.merg$Population.Code)
 ord.merged <- isoMDS(ph.daisy)
 ord.merged <- data.frame(ph.merg, ord.merged$points)
 
+
 ggplot(ord.merged, aes(X1,X2,colour=Population.Code))+
   geom_point()+
   stat_ellipse()+
   theme_bw()
+
+
 
 TukeyHSD(aov(ord.merged$X1 ~ ord.merged$Population.Code))
 
@@ -464,7 +508,8 @@ out.procf.species <- lapply(new.dat.list2, function(x){
 ```
 
 ```{r}
-
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/Procrustes_species.jpg",
+     width=350, height=125,units='mm', res=300)
 
 layout(matrix(c(1,2,3), 1,3, byrow=FALSE),
        widths = c(6,6,6), heights = c(1))
@@ -472,6 +517,24 @@ layout(matrix(c(1,2,3), 1,3, byrow=FALSE),
 for(i in 1:3){
   plotshapes(out.procf.species[[i]]$rotated)
 }
+
+dev.off()
+```
+```{r}
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/TPS_compare_species.jpg",
+     width=300, height=100,units='mm', res=300)
+
+layout(matrix(c(1,2,3), 1,3, byrow=FALSE),
+       widths = c(6,6,6), heights = c(1))
+
+#TPS grid comparisons
+combns <- t(combn(1:3, 2))
+
+for(i in 1:3){
+  tpsgrid(out.procf.species[[combns[i,1]]]$mshape,out.procf.species[[combns[i,2]]]$mshape)
+}
+
+dev.off()
 ```
 
 ```{r}
