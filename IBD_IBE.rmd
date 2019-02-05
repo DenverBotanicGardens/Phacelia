@@ -5,6 +5,10 @@ date: "November 17, 2016"
 output: html_document
 ---
 
+Climate envelope
+
+Nov17PhFo_data_all2loci... in case I need the genetic data again
+
 ```{r}
 rm(list=ls())
 ```
@@ -36,12 +40,13 @@ library(boot)
 #library(ecodist)
 library(geosphere)
 #library(poppr)
-library(car)
+# library(car)
 #library(strataG)
 library(rgeos)
 #library(diveRsity)
 library(ggmap)
 library(hierfstat)
+library(sp)
 
 ```
 
@@ -49,23 +54,40 @@ Pairwise distance matrix
 ```{r}
 ph.dist <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS centroids 2016_pdm.csv")
 
+# Get rid of TC
+ph.dist1 <- ph.dist[ph.dist$Code != "T",]
+
 #Convert the Northing/Easting to lat/long
 ph.dist.UTM <- SpatialPoints(ph.dist[,c("Easting","Northing")],
                         proj4string = CRS("+proj=utm +zone=13 +datum=NAD83"))
 ph.dist.LatLon <- spTransform(ph.dist.UTM, CRS("+proj=longlat +datum=WGS84"))
 ph.dist <- data.frame(ph.dist,ph.dist.LatLon)
+plot(ph.dist.LatLon) # 3 counties
+
+ph.dist1.UTM <- SpatialPoints(ph.dist1[,c("Easting","Northing")],
+                        proj4string = CRS("+proj=utm +zone=13 +datum=NAD83"))
+ph.dist1.LatLon <- spTransform(ph.dist1.UTM, CRS("+proj=longlat +datum=WGS84"))
+ph.dist1 <- data.frame(ph.dist1,ph.dist1.LatLon)
+plot(ph.dist1.LatLon) # 2 counties
 
 #These are just populations, not individuals
+identical(ph.dist[-15,],ph.dist1) # TRUE
+spatialdist1.noTC <- dist(ph.dist1[,3:4]) # Northing, Easting is in UTM, Easting.1 == Lon; Northing.1 == Lat
+
 spatialdist.noTC <- dist(ph.dist[-15,3:4]) #exclude Troublesome Creek
 spatialdist.TC <- dist(ph.dist[,3:4])
+
+spatialdist1.noTC;spatialdist.noTC
+identical(spatialdist1.noTC,spatialdist.noTC) # They look the same but are somehow different
+
 # from DAPC and <http://adegenet.r-forge.r-project.org/files/tutorial-basics.pdf>
 
-ph.dist
 
 #Dgeo <- spatialdist.noTC
 
-ggmap(get_map(c(-107,40,-105.25,41)))+
-  geom_point(data=ph.dist, aes(Easting.1,Northing.1))
+# ggmap is all broken
+# ggmap(get_map(c(-107,40,-105.25,41)))+
+#   geom_point(data=ph.dist, aes(Easting.1,Northing.1))
 
 ```
 
@@ -74,7 +96,7 @@ Spatial and genetic data per individual -> don't want by individual Jan 26, 2018
   - Thibaut in his vignette for adegenet says you can do isotlation by 
 ```{r}
 # Genepop input file with PhGi (TC) 431 individuals
-phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/GenAlExAnalyses_Nov2017/Genpop_PhfoData_Nov2017.gen")
+phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/GenAlExAnalyses_Nov2017/Genpop_PhfoData_Nov2017.gen") # Nov2017... PhfoData.. 6Dec2017 does not have troublesome creek. 
 
 table(phall@pop)
 #Change to match T -> TC; F -> FC; B -> BR
@@ -82,18 +104,29 @@ currentlevels <- levels(phall@pop)
 currentlevels[currentlevels=="T"] <- "TC"
 currentlevels[currentlevels=="F"] <- "FC"
 currentlevels[currentlevels=="B"] <- "BR"
+currentlevels[currentlevels=="D"] <- "DJ"
+currentlevels[currentlevels=="P"] <- "PW"
+currentlevels[currentlevels=="R"] <- "RW"
+currentlevels[currentlevels=="V"] <- "VR"
 levels(phall@pop) <- currentlevels
 
+# GENIND with no Troublesome Creek !!
 ph1 <- phall[phall@pop != "TC"] #395 individuals
 table(ph1@pop)
 
-#Can store spatial informaiton in @other$xy  
+
+# Can store spatial information in @other$xy  
 # Location information for each individual under Northing/Easting (need lat/lon) for individuals as $Code AN... and $Ind. 1:30 
 phfo.gen <- read.csv("Q:/Research/Lab/Projects/Phacelia formosula/Project Information/Phacelia project information with GPS data 2016_all.csv")
-nrow(phfo.gen) #451 - some individuals were thrown out for the genetic data. 
+
+nrow(phfo.gen) #451 - some individuals were thrown out for the genetic data.
+codelevels <- levels(phfo.gen$Code)
+codelevels[codelevels=="D"] <- "DJ"
+codelevels[codelevels=="P"] <- "PW"
+codelevels[codelevels=="R"] <- "RW"
+codelevels[codelevels=="V"] <- "VR"
+levels(phfo.gen$Code) <- codelevels
 table(phfo.gen$Code)
-#Still match these locaitons with the individuals from phall
-table(phall@pop)
 phfo.gen$Code <- factor(phfo.gen$Code, levels=levels(phall@pop))
 
 
@@ -104,11 +137,29 @@ curlev <- levels(phfo.indloc$SimpleCode)
 curlev[curlev=="T"] <- "TC"
 curlev[curlev=="F"] <- "FC"
 curlev[curlev=="B"] <- "BR"
+curlev[curlev=="D"] <- "DJ"
+curlev[curlev=="P"] <- "PW"
+curlev[curlev=="R"] <- "RW"
+curlev[curlev=="V"] <- "VR"
 levels(phfo.indloc$SimpleCode) <- curlev
 
+phfo.gen1 <- phfo.gen[!grepl("TC",phfo.gen$Code),]
+phfo.indloc1 <- phfo.indloc[!grepl("TC",phfo.indloc$SimpleCode),]
+#Still match these locaitons with the individuals from phall
+table(phall@pop)
+table(phfo.gen$Code) # Has Troublesome Creek
+table(ph1@pop)
+table(phfo.indloc$SimpleCode) # Has Troublesome Creek
+table(phfo.gen1$Code) # Zero TC
+table(phfo.indloc1$SimpleCode) # Zero TC
+
+
+```
+
+```{r}
 # help make levels match?
-phfo.indloc$SimpleCode <- factor(phfo.indloc$SimpleCode, levels= levels(phall@pop))
-table(phfo.indloc$SimpleCode)
+# phfo.indloc$SimpleCode <- factor(phfo.indloc$SimpleCode, levels= levels(phall@pop))
+# table(phfo.indloc$SimpleCode)
 
 #Morphology  
 phfo.loc <- read.csv("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Phacelia 2014 collection and morphology data/geoloc_ph.csv")
@@ -120,9 +171,8 @@ table(phfo.indloc$SimpleCode)
 
 #phall are individuals from phfo.indloc
 # So take the SimpleCode and IndNum from phfo.indloc and the Northing and Easting from phfo.gen matching Code and Ind.
-phfo.gen$Code <- as.character(phfo.gen$Code)
-phfo.indloc$SimpleCode <- as.character(phfo.indloc$SimpleCode)
-
+# phfo.gen$Code <- as.character(phfo.gen$Code)
+# phfo.indloc$SimpleCode <- as.character(phfo.indloc$SimpleCode)
 
 
 #Want to keep order of phall which might come from phfo.indloc
@@ -130,11 +180,23 @@ phfo.indloc$ID <- 1:nrow(phfo.indloc)
 phfo.UTM <- merge(phfo.gen,phfo.indloc[,c(1,3:5)],
                   by.x=c("Code","Ind."),by.y=c("SimpleCode","IndNum"))
 
+#Same without TC
+phfo.indloc1$ID <- 1:nrow(phfo.indloc1)
+phfo.UTM1 <- merge(phfo.gen1,phfo.indloc1[,c(1,3:5)],
+                  by.x=c("Code","Ind."),by.y=c("SimpleCode","IndNum"))
+
+
 #Back to phfo.indloc order
 phfo.UTM <- phfo.UTM[with(phfo.UTM, order(phfo.UTM$ID)),]
 phfo.UTM$Code <- factor(phfo.UTM$Code, levels=levels(phall@pop))
 table(phfo.UTM$Code)
 sum(table(phfo.UTM$Code)) #425
+
+
+phfo.UTM1 <- phfo.UTM1[with(phfo.UTM1, order(phfo.UTM1$ID)),]
+phfo.UTM1$Code <- factor(phfo.UTM1$Code, levels=levels(ph1@pop))
+table(phfo.UTM1$Code)
+sum(table(phfo.UTM1$Code)) #395
 
 
 #Convert phfo.UTM$Easting and $Northing to lat/lon
@@ -144,14 +206,25 @@ phfo.LatLon <- spTransform(phfo.UTM.SP, CRS("+proj=longlat +datum=WGS84"))
 phfo.UTM <- data.frame(phfo.UTM,phfo.LatLon)
 names(phfo.UTM) <- c(names(phfo.UTM)[-c((length(phfo.UTM)-1):length(phfo.UTM))],"lon","lat")
 
+# Version without TC
+phfo.UTM.SP1 <- SpatialPoints(phfo.UTM1[,c("Easting","Northing")],
+                        proj4string = CRS("+proj=utm +zone=13 +datum=NAD83"))
+phfo.LatLon1 <- spTransform(phfo.UTM.SP1, CRS("+proj=longlat +datum=WGS84"))
+phfo.UTM1 <- data.frame(phfo.UTM1,phfo.LatLon1)
+names(phfo.UTM1) <- c(names(phfo.UTM1)[-c((length(phfo.UTM1)-1):length(phfo.UTM1))],"lon","lat")
+
 #Want XY coordinates from phfo.gen that are individuals found in gen.ind
 phall@other$xy <- phfo.UTM[,c("lon","lat")]
-ph1@other$xy <- phfo.UTM[-grep("TC",phfo.UTM$Code),c("lon","lat")]
+identical(phfo.UTM[-grep("TC",phfo.UTM$Code),c("lon","lat")],phfo.UTM1[,c("lon","lat")])
+phfo.UTM[-grep("TC",phfo.UTM$Code),c("lon","lat")];phfo.UTM1[,c("lon","lat")] # not idendical but look the same?!?!
+# ph1@other$xy <- phfo.UTM[-grep("TC",phfo.UTM$Code),c("lon","lat")]
+ph1@other$xy <- phfo.UTM1[,c("lon","lat")]
 nrow(phall@other$xy) #425
+nrow(ph1@other$xy) # 395
 ```
 
 
-
+With TC
 Get distance matrix for genetic distance by population (15)
 ```{r}
 Dgen <- dist.genpop(genind2genpop(phall), method=1) #1: Nei's 2: Angular Edward's Euclidean distance
@@ -241,12 +314,15 @@ ks.test(Dgenind, plnorm)
 ks.test(Dgenind, punif)
 
 ```
+
 ```{r}
 phGrand <- phall[phall@pop == "TC"] #30
 phJackson <- phall[!(phall@pop %in% c("FC","HN","HS","TC"))] #330
 phLarimer <- phall[(phall@pop %in% c("FC","HN","HS"))] #65
 
-phJacksonandLarimer <- phall[phall@pop != "TC"]
+# phJacksonandLarimer <- phall[phall@pop != "TC"]
+phJacksonandLarimer <- ph1
+
 
 Dgenind_Grand <- dist(phGrand@tab)
 Dgenind_Jackson <- dist(phJackson@tab)
@@ -260,23 +336,31 @@ Dgeo_Larimer <- dist(phLarimer$other$xy)
 
 Dgeo_JacksonandLarimer <- dist(phJacksonandLarimer$other$xy)
 
-#hierfstat 
+#hierfstat:: 
 Grand.hf <- genind2hierfstat(phGrand)
 #Grand.dist.hf <- varcomp.glob(Grand.hf$pop, Grand.hf[,-1]) #nope, only one population
 Jackson.hf <- genind2hierfstat(phJackson)
-Jackson.dist.hf <- varcomp.glob(Jackson.hf,Jackson.hf[,-1] )
+Jackson.dist.hf <- varcomp.glob(Jackson.hf,Jackson.hf[,-1] ) # ???
 
 
 matFst <- pairwise.fst(phall)
-
+matFst1 <- pairwise.fst(ph1)
 
 plot(phall$other$xy$lon,phall$other$xy$lat)
 points(phGrand$other$xy$lon,phGrand$other$xy$lat, col="red", cex=2)
 points(phJackson$other$xy$lon,phJackson$other$xy$lat, col="blue", cex=1.5)
 points(phLarimer$other$xy$lon,phLarimer$other$xy$lat, col="green", cex=2)
 points(phJacksonandLarimer$other$xy$lon,phJacksonandLarimer$other$xy$lat, col="purple", cex=5)
+
+
+plot(ph1$other$xy$lon,ph1$other$xy$lat)
+# points(phGrand$other$xy$lon,phGrand$other$xy$lat, col="red", cex=2)
+points(phJackson$other$xy$lon,phJackson$other$xy$lat, col="blue", cex=1.5)
+points(phLarimer$other$xy$lon,phLarimer$other$xy$lat, col="green", cex=2)
+points(phJacksonandLarimer$other$xy$lon,phJacksonandLarimer$other$xy$lat, col="purple", cex=5)
 ```
 
+# With Grand County, Troublesome Creek, skip to next for no TC
 ```{r}
 layout(matrix(c(2,3,5,
                 4,1,6),2,3,byrow=TRUE))
@@ -288,6 +372,75 @@ myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
 plot(Dgeo, Dgenind, pch=20,cex=.5, xlim=c(0,1),ylim=c(0,10), ylab="", xlab="meters")
 image(dens, col=transp(myPal(300),.7), add=TRUE)
 abline(lm(Dgenind~Dgeo))
+title("Isolation by distance plot")
+
+#plot 2
+par(mar=c(1,4.5,4.5,0.5))
+dens <-kde2d(Dgeo_Jackson,Dgenind_Jackson, n=100)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo_Jackson, Dgenind_Jackson, pch=20,cex=.5, xlab="",ylab="Euclidean distance")
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind_Jackson~Dgeo_Jackson))
+title("Jackson County")
+
+#plot 3
+par(mar=c(1,4.5,4.5,0.5))
+dens <-kde2d(Dgeo_Larimer,Dgenind_Larimer, n=100)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo_Larimer, Dgenind_Larimer, pch=20,cex=.5, xlab="",ylab="")
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind_Larimer~Dgeo_Larimer))
+title("Larimer County")
+
+#plot 4
+par(mar=c(2,4.5,4.5,0.5))
+dens <-kde2d(Dgeo_Grand,Dgenind_Grand, n=100)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo_Grand, Dgenind_Grand, pch=20,cex=.5, xlab="meters",ylab="Euclidean distance" )
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind_Grand~Dgeo_Grand))
+title("Grand County")
+
+#plot 5
+par(mar=c(2,4.5,4.5,0.5))
+dens <-kde2d(Dgeo_JacksonandLarimer,Dgenind_JacksonandLarimer, n=300)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo_JacksonandLarimer, Dgenind_JacksonandLarimer, pch=20,cex=.5, xlab="meters",ylab="Euclidean distance" )
+image(dens, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind_JacksonandLarimer~Dgeo_JacksonandLarimer))
+title("Jackson and Larimer County")
+
+#plot 6
+plot(phall$other$xy$lon,phall$other$xy$lat)
+points(phGrand$other$xy$lon,phGrand$other$xy$lat, col="red", cex=2)
+points(phJackson$other$xy$lon,phJackson$other$xy$lat, col="blue", cex=1.5)
+points(phLarimer$other$xy$lon,phLarimer$other$xy$lat, col="green", cex=2)
+points(phJacksonandLarimer$other$xy$lon,phJacksonandLarimer$other$xy$lat, col="purple", cex=5)
+```
+
+# Get rid of TC
+```{r}
+Dgen1 <- dist.genpop(genind2genpop(ph1), method=1) #1: Nei's 2: Angular Edward's Euclidean distance
+Dgenind1 <- dist(ph1@tab) #euclidean
+Dgenind.maximum1 <- dist(ph1@tab, method="max")
+Dgeo1 <- dist(ph1$other$xy)
+
+```
+
+```{r}
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/Isolationxdistxgen.jpg",
+     width=150, height=125,units='mm', res=300)
+
+layout(matrix(c(1,2,
+                3,4),2,2,byrow=TRUE))
+
+#plot 1
+par(mar=c(2,4.5,4.5,0.5)+0.1)
+dens1 <-kde2d(Dgeo1,Dgenind1, n=100)
+myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+plot(Dgeo1, Dgenind1, pch=20,cex=.5, xlim=c(0,1),ylim=c(0,10), ylab="Genetic Distance (Euclidean)", xlab="meters")
+image(dens1, col=transp(myPal(300),.7), add=TRUE)
+abline(lm(Dgenind1~Dgeo1))
 title("Isolation by distance plot")
 
 #plot 2
@@ -724,6 +877,8 @@ save(abiotic.phfo, file="P:/hackathon/Phacelia/abiotic_phfo.rda")
 ```{r}
 #load("P:/hackathon/Phacelia/abiotic_phfo.rda")
 load("P:/hackathon/Phacelia/typeall_soils.rda")
+
+load("P:/hackathon/Phacelia/abiotic_phfo.rda")
 prabpoints <- SpatialPoints(phfo.spdf[,c("lon","lat")],
                                      #data=phfo.spdf,
                 proj4string=CRS(proj4string(typeall[[1]])))
@@ -1063,20 +1218,35 @@ marginal_plot = function(x, y, group = NULL, data = NULL, lm_show = FALSE, lm_fo
 
 
 ```{r}
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/SurfaceText_DepthtoWaterTable.jpg",
+     width=150, height=125,units='mm', res=300)
+     
 marginal_plot(x=SurfText, y=Dep2WatTbl, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID!=4,],
               group=FID,
               xlab="Surface Texture",
               ylab="Depth to water table")
+
+dev.off()
+
+write.table(table(pcaphfo.bioclim.soils$SurfText, pcaphfo.bioclim.soils$Code),
+            "clipboard", sep="\t", row.names=TRUE)
 ```
 
 ```{r}
+jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/AvailableSurfaceWater0_25cm__pH.jpg",
+     width=150, height=125,units='mm', res=300)
+
 marginal_plot(x=AWS025, y=pHwater, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID!=4,],
               group=FID,
               xlab="Avaliable surface water",
               ylab="pH")
+
+dev.off()
 ```
 
 ```{r}
+
+
 marginal_plot(x=Comp.1, y=Comp.2, data=pcaphfo.bioclim.soils[pcaphfo.bioclim.soils$FID<3,],
               group=FID,
               xlab="Comp 1",
