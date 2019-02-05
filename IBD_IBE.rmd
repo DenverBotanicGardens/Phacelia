@@ -230,7 +230,8 @@ Get distance matrix for genetic distance by population (15)
 Dgen <- dist.genpop(genind2genpop(phall), method=1) #1: Nei's 2: Angular Edward's Euclidean distance
 Dgenind <- dist(phall@tab) #euclidean
 Dgenind.maximum <- dist(phall@tab, method="max")
-Dgeo <- dist(phall$other$xy)
+# Dgeo <- dist(phall$other$xy)
+Dgeo <- dist(phfo.UTM[,c("Easting","Northing")])
 #These are the genetic and geographic distance for 425 individuals
 ibd <- mantel.randtest(Dgenind,Dgeo) #OH dear, Dgen is 15 populations, Dgeo are all individuals
 ibd
@@ -245,9 +246,9 @@ vegan::mantel(Dgeo,Dgenind)
 #vegan version
 vegan::mantel(Dgeo,Dgenind, permutations = 9999)
 
-#log transform distance?
-plot(density(Dgeo), xlim=c(-11,11), main = "Distance of geo, red = log transformed")
-lines(density(log(Dgeo)),col="red")
+#Distance with UTM is now in meters, distance of lat/lon are who knows
+plot(density(Dgeo), main = "Distance of geo, red = log transformed") # xlim=c(-11,11), 
+
 
 #similar "rank"?
 
@@ -316,6 +317,8 @@ ks.test(Dgenind, punif)
 ```
 
 ```{r}
+'%ni%' <- Negate('%in%')
+
 phGrand <- phall[phall@pop == "TC"] #30
 phJackson <- phall[!(phall@pop %in% c("FC","HN","HS","TC"))] #330
 phLarimer <- phall[(phall@pop %in% c("FC","HN","HS"))] #65
@@ -328,13 +331,18 @@ Dgenind_Grand <- dist(phGrand@tab)
 Dgenind_Jackson <- dist(phJackson@tab)
 Dgenind_Larimer <- dist(phLarimer@tab)
 
+Dgeo_Grand <- dist(phfo.UTM[grepl("TC",phfo.UTM$Code),c("Easting","Northing")])
+Dgeo_Jackson <- dist(phfo.UTM[phfo.UTM$Code %ni% c("FC","HN","HS","TC"),c("Easting","Northing")])
+Dgeo_Larimer <- dist(phfo.UTM[phfo.UTM$Code %in% c("FC","HN","HS"),c("Easting","Northing")])
+
+Dgeo_JacksonandLarimer <- dist(phfo.UTM1[,c("Easting","Northing")])
+
+# Lat/Lon
+# Dgeo_Grand <- dist(phGrand$other$xy)
+# Dgeo_Jackson <- dist(phJackson$other$xy)
+# Dgeo_Larimer <- dist(phLarimer$other$xy)
+
 Dgenind_JacksonandLarimer <- dist(phJacksonandLarimer@tab)
-
-Dgeo_Grand <- dist(phGrand$other$xy)
-Dgeo_Jackson <- dist(phJackson$other$xy)
-Dgeo_Larimer <- dist(phLarimer$other$xy)
-
-Dgeo_JacksonandLarimer <- dist(phJacksonandLarimer$other$xy)
 
 #hierfstat:: 
 Grand.hf <- genind2hierfstat(phGrand)
