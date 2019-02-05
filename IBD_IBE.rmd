@@ -366,6 +366,14 @@ plot(ph1$other$xy$lon,ph1$other$xy$lat)
 points(phJackson$other$xy$lon,phJackson$other$xy$lat, col="blue", cex=1.5)
 points(phLarimer$other$xy$lon,phLarimer$other$xy$lat, col="green", cex=2)
 points(phJacksonandLarimer$other$xy$lon,phJacksonandLarimer$other$xy$lat, col="purple", cex=5)
+
+colocounties <- readOGR(dsn="Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/aa_GENERAL_non-species_files/All_General_Background_Layers/Colorado/CO_Counties", layer="counties_wgs84")
+plot(colocounties)
+
+plot(colocounties, xlim=c(-106.6,-105.05),ylim=c(40.25,41))
+pointLabel(coordinates(colocounties),labels=colocounties$COUNTY, cex=0.5)
+
+
 ```
 
 # With Grand County, Troublesome Creek, skip to next for no TC
@@ -426,67 +434,57 @@ points(phLarimer$other$xy$lon,phLarimer$other$xy$lat, col="green", cex=2)
 points(phJacksonandLarimer$other$xy$lon,phJacksonandLarimer$other$xy$lat, col="purple", cex=5)
 ```
 
-# Get rid of TC
-```{r}
-Dgen1 <- dist.genpop(genind2genpop(ph1), method=1) #1: Nei's 2: Angular Edward's Euclidean distance
-Dgenind1 <- dist(ph1@tab) #euclidean
-Dgenind.maximum1 <- dist(ph1@tab, method="max")
-Dgeo1 <- dist(ph1$other$xy)
-
-```
 
 Save figure of genetic by geographic distance plots
 ```{r}
 jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/Isolationxdistxgen.jpg",
-     width=150, height=125,units='mm', res=300)
+     width=200, height=200,units='mm', res=300)
 
-layout(matrix(c(1,2,
-                3,4),2,2,byrow=TRUE))
+layout(matrix(c(4,4,4,
+                4,4,5,
+                1,2,3),3,3,byrow=TRUE))
 
 #plot 1
-par(mar=c(2,4.5,4.5,0.5)+0.1)
-dens1 <-kde2d(Dgeo1,Dgenind1, n=100)
-myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
-plot(Dgeo1, Dgenind1, pch=20,cex=.5, xlim=c(0,1),ylim=c(0,10), ylab="Genetic Distance (Euclidean)", xlab="meters")
+dens1 <-kde2d(Dgeo_JacksonandLarimer,Dgenind_JacksonandLarimer, n=100)
+myPal <- colorRampPalette(c("grey100","grey80","grey50", "grey10","black"))
+plot(Dgeo_JacksonandLarimer, Dgenind_JacksonandLarimer, pch=20,cex=.5, xlim=c(0,1),ylim=c(0,10), ylab="Genetic Distance (Euclidean)", xlab="")
 image(dens1, col=transp(myPal(300),.7), add=TRUE)
-abline(lm(Dgenind1~Dgeo1))
-title("Isolation by distance plot")
+abline(lm(Dgenind_JacksonandLarimer~Dgeo_JacksonandLarimer))
+title("Jackson and Larimer")
 
 #plot 2
-par(mar=c(1,4.5,4.5,0.5))
 dens <-kde2d(Dgeo_Jackson,Dgenind_Jackson, n=100)
-myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+# myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
 plot(Dgeo_Jackson, Dgenind_Jackson, pch=20,cex=.5, xlab="",ylab="Euclidean distance")
 image(dens, col=transp(myPal(300),.7), add=TRUE)
 abline(lm(Dgenind_Jackson~Dgeo_Jackson))
 title("Jackson County")
 
 #plot 3
-par(mar=c(1,4.5,4.5,0.5))
 dens <-kde2d(Dgeo_Larimer,Dgenind_Larimer, n=100)
-myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
+# myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
 plot(Dgeo_Larimer, Dgenind_Larimer, pch=20,cex=.5, xlab="",ylab="")
 image(dens, col=transp(myPal(300),.7), add=TRUE)
 abline(lm(Dgenind_Larimer~Dgeo_Larimer))
 title("Larimer County")
 
 #plot 4
-par(mar=c(2,4.5,4.5,0.5))
-dens <-kde2d(Dgeo_JacksonandLarimer,Dgenind_JacksonandLarimer, n=300)
-myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
-plot(Dgeo_JacksonandLarimer, Dgenind_JacksonandLarimer, pch=20,cex=.5, xlab="meters",ylab="Euclidean distance" )
-image(dens, col=transp(myPal(300),.7), add=TRUE)
-abline(lm(Dgenind_JacksonandLarimer~Dgeo_JacksonandLarimer))
-title("Jackson and Larimer County")
+plot(colocounties, xlim=c(-106.6,-105.05),ylim=c(40.25,41))
+pointLabel(coordinates(colocounties)-0.05,labels=colocounties$COUNTY, cex=0.95)
+points(phfo.LatLon, pch=16)
+
 
 #plot 5
-plot(phall$other$xy$lon,phall$other$xy$lat)
-points(phGrand$other$xy$lon,phGrand$other$xy$lat, col="red", cex=2)
-points(phJackson$other$xy$lon,phJackson$other$xy$lat, col="blue", cex=1.5)
-points(phLarimer$other$xy$lon,phLarimer$other$xy$lat, col="green", cex=2)
-points(phJacksonandLarimer$other$xy$lon,phJacksonandLarimer$other$xy$lat, col="purple", cex=5)
+plot(colocounties, border="grey50")
+# pointLabel(coordinates(colocounties)-0.05,labels=colocounties$COUNTY, cex=0.75)
+# points(phfo.LatLon, pch=16)
+segments(-106.6,40.25,-106.6,41, lwd=2)
+segments(-105.05,40.25,-105.05,41, lwd=2)
+segments(-106.6,40.25,-105.05,40.25, lwd=2)
+segments(-106.6,41,-105.05,41, lwd=2)
 
 dev.off()
+
 ```
 
 . ** Suggestion is a "partial Mantel testing association between the matrix of genetic distances, a model matrix of cluster membership, with matrix of geographical distances as a covariate** However, with a barrier, this test is not conservative, will still claim isolation by distance (when there is none). 
@@ -707,73 +705,16 @@ plot(ph.counties, add=TRUE)
 To create background points:  
 ```{r, eval=FALSE}
 # Save the circles and the convex hull as shapefile, break into 100^2 km chunkcs, feed into the soils usda site and get that coverage for phfo
-xSPDF <- as(x@polygons, "SpatialPolygonsDataFrame")
-writeOGR(xSPDF, layer="xCircles", dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
+xSPDF <- circles(phfo.UTM1[,c("Easting","Northing")], d=5000, lonlat=FALSE)
+pntSPDF <- spsample(polygons(xSPDF), n=300, "stratified")
 
-convHSPDF <- as(convH@polygons, "SpatialPolygonsDataFrame")
-writeOGR(convHSPDF, layer="xConvHull", dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
+plot(xSPDF)
+points(pntSPDF, pch=16, col="blue")
 
-disx <- disaggregate(x@polygons)
-class(disx)
-str(disx)
-
-#cs <- c(3.65,3.65)*6000 #grid must be 100,000 acres: 1 acre = 4046.86 square meter; 1 degree latitude = 111.03 km | 68.99 miles and longitude = 1.42 km | 0.88 miles
-#405km
-405/111.03 #3.65
-
-
-#cd <- ceiling(diff(t(bb))/cs) # number of cells per direction
-#grd <- GridTopology(cellcentre.offset = bb[,1]+cs/2, cellsize = cs, cells.dim=cd)
-#sp_grd <- SpatialGridDataFrame(grd,
-#                               data=data.frame(id=1:prod(cd)),
-#                               proj4string=CRS(proj4string(x@polygons)))
-#plot(sp_grd)
 ```
 
 
 Create a raster of approximately 100,000 acres for the soils usda website to download portions to cover the entire area of the three county speices. 
-```{r, eval=FALSE}
-r <- raster()
-bb <- bbox(x@polygons) #Spatial bounding box, sp::bbox
-
-res(r) <- 3.65*15
-r <- setExtent(r, bb)
-r <- setValues(r,seq(1,r@ncols*r@nrows))
-plot(r)
-plot(ph.counties, add=TRUE)
-points(phfo.UTM[,c("lon","lat")], col="red") 
-points(bgd, col=rgb(0,0.5,1,0.5))
-
-```
-
-raster to shapefile  
-Still all the extent of the whole raster, not just the extent of each
-```{r, eval=FALSE}
-
-for(i in 1:(r@ncols*r@nrows)){
-  r1 <- r==i
-#  r1[r1!=i] <- NA
-  r1 <- trim(r1, values=FALSE)
-  p <- as(extent(r1), "SpatialPolygons")
-  crs(p) <- proj4string(r)
-  pSPDF <- as(p, "SpatialPolygonsDataFrame")
-  writeOGR(pSPDF, layer=paste0("phfogrid",i),
-            dsn = "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps", driver="ESRI Shapefile")
-
-#  writeRaster(r1, paste("Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/phforas",i,".tif",sep=""))
-}
-```
-
-```{r, eval=FALSE}
-plot(ph.counties)
-plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
-plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
-points(phfo.UTM[,c("lon","lat")], col="blue") 
-points(bgd)
-```
-
-
-
 
 
 #Soils   
@@ -790,9 +731,10 @@ flnms <- unique(sapply(strsplit(filenames,"[.]"),'[',1)) #13 layers I have
 
 shape <- list()
 #Get all the soil layers I made, Jessie made most of them!
-for(i in flnms){
-  shape[[i]] <- readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
-}
+# for(i in flnms){
+lapply(flnms, function(i){
+    readOGR("Q:/Research/All_Projects_by_Species/aa_Shapefiles_Maps/Phacelia formosula/SoilLayers", layer = paste(i))
+})
 
 #Dissolve polygons by type
 types <- c("AWS","depthWT","ph030","stext")
@@ -804,41 +746,17 @@ typeall <- lapply(types, function(tp){
                          }))
   })
 
-save(typeall, file="P:/hackathon/Phacelia/typeall_soils.rda")
+plot(typeall[[1]])
+points(phfo.LatLon1, pch=16, col="blue")
+
+save(typeall, file="C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/SoilLayers.Rda")
 
 ```
 
 
 <https://cran.r-project.org/web/packages/dismo/vignettes/sdm.pdf>  
 Overlap methods for background and presence points  Ward et al. 2009; Phillips and Elith, 2011  
-
-```{r}
-phfo.spdf <- SpatialPointsDataFrame(phfo.UTM[,c("lon","lat")],
-                                    phfo.UTM)
-
-# create background points for convex hull for all three
-convH <- convHull(phfo.spdf)
-
-# create background #2 with smaller circles around each county populations only   
-# Need a grid to get one point per grid of size whatever bioclim is to get background points? 
-x <- circles(phfo.UTM[,c("lon","lat")], d=10000, lonlat=TRUE) #10 km
-
-#same grid as bioclim
-#Make spatialpointsdataframe
-#background.mask <- mask(bioclim.phfo[[1]], polygons(x),filename="Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Phacelia formosula_abiotic/Maps/bc_mk_phfo_1",overwrite=TRUE)
-#save(background.mask,
-#     file="P:/hackathon/Phacelia/background.rda")
-load("P:/hackathon/Phacelia/background.rda")
-
-
-bgd <- randomPoints(background.mask, 500)
-
-plot(ph.counties)
-plot(x, col=rgb(1,0.5,1,0.5), add=TRUE)
-#plot(convH, add=TRUE, col=rgb(0,0.5,1,0.5))
-points(phfo.UTM[,c("lon","lat")], col="blue", pch=16) 
-#plot(background.mask, add=TRUE)
-```
+# see pntSPDF within xSPDF
 
 
 Now extract points from all the bioclim layers, plot them in a pretty layout
@@ -846,30 +764,43 @@ Now extract points from all the bioclim layers, plot them in a pretty layout
 
 #extract background and county points
 # add background points to other list
-bgdtoadd <- data.frame(t(matrix(NA,length(names(phfo.spdf)),
-                                nrow(bgd),byrow = TRUE)))
-names(bgdtoadd) <- names(phfo.spdf)
-bgdtoadd[,c("lon","lat")] <- bgd
-bgdtoadd$Code <- "background"
+proj4string(pntSPDF) <- CRS("+init=epsg:26913")
+pntSPDF.latlon <- spTransform(pntSPDF, CRS(proj4string(phfo.LatLon1)))
+
+lonlat <- pntSPDF.latlon@coords
+utms <- pntSPDF@coords
+names(utms) <- c("Easting","Northing")
+names(lonlat) <- c("lon", "lat")
+backgroundpoints <- data.frame(Code= "All",1:nrow(lonlat),utms,"background",lonlat)
+names(backgroundpoints) <- c("Code","Ind.","Easting","Northing","NAME","lon","lat")
+phfo.prbg <- rbind(phfo.UTM1[,c("Code","Ind.","Easting","Northing","NAME","lon","lat")],
+                   backgroundpoints)
 
 #take over FID to group by county for plotting, 1:Jackson,2:Larimer,3:Grand
-phfo.spdf$FID <- 1
-phfo.spdf$FID[phfo.spdf$Code %in% c("HN","HS","FC")] <- 2
-phfo.spdf$FID[phfo.spdf$Code %in% c("TC")] <- 3
-bgdtoadd$FID <- 4
-
-phfo.spdf <- rbind(phfo.spdf@data,bgdtoadd)
+phfo.prbg$County <- "background"
+phfo.prbg$County[phfo.prbg$Code %in% c("HN","HS","FC")] <- "Larimer"
+phfo.prbg$County[phfo.prbg$Code %ni% c("HN","HS","FC","All")] <- "Jackson"
 
 #bio is a list of bioclim values at each point
 
 #extract rasters to data
-bio<-list()
-for(i in 1:19){
-  bio[[i]] <- extract(bioclim.phfo[[i]], phfo.spdf[,c("lon","lat")]) # projected from UTM Z13 NAD83 to longlat WGS84
-}
+# bio<-list()
+# for(i in 1:19){
+bio <- lapply(1:19,function(i){
+  extract(bioclim.phfo[[i]], phfo.prbg[,c("lon","lat")]) 
+})
+
+plot(bioclim.phfo[[1]])
 
 #one matrix with bioclims and soils for presence points
-abiotic.phfo <- do.call(cbind,bio) #matrix of 425 presence points and 500 background points by 19 bioclim variables
+abiotic.phfo <- do.call(cbind,bio) #matrix of (425::TC; 395::withoutTC) presence points and 300 background points by 19 bioclim variables
+
+abiotic.phfo <- data.frame(abiotic.phfo)
+names(abiotic.phfo) <- paste("Bio",1:19,sep="")
+
+soils <- lapply(1:4, function(i){
+  extract()
+})
 
 save(abiotic.phfo, file="P:/hackathon/Phacelia/abiotic_phfo.rda")
 
