@@ -435,6 +435,7 @@ Dgeo1 <- dist(ph1$other$xy)
 
 ```
 
+Save figure of genetic by geographic distance plots
 ```{r}
 jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/Isolationxdistxgen.jpg",
      width=150, height=125,units='mm', res=300)
@@ -471,15 +472,6 @@ title("Larimer County")
 
 #plot 4
 par(mar=c(2,4.5,4.5,0.5))
-dens <-kde2d(Dgeo_Grand,Dgenind_Grand, n=100)
-myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
-plot(Dgeo_Grand, Dgenind_Grand, pch=20,cex=.5, xlab="meters",ylab="Euclidean distance" )
-image(dens, col=transp(myPal(300),.7), add=TRUE)
-abline(lm(Dgenind_Grand~Dgeo_Grand))
-title("Grand County")
-
-#plot 5
-par(mar=c(2,4.5,4.5,0.5))
 dens <-kde2d(Dgeo_JacksonandLarimer,Dgenind_JacksonandLarimer, n=300)
 myPal <- colorRampPalette(c("white","blue","gold", "orange", "red"))
 plot(Dgeo_JacksonandLarimer, Dgenind_JacksonandLarimer, pch=20,cex=.5, xlab="meters",ylab="Euclidean distance" )
@@ -487,12 +479,14 @@ image(dens, col=transp(myPal(300),.7), add=TRUE)
 abline(lm(Dgenind_JacksonandLarimer~Dgeo_JacksonandLarimer))
 title("Jackson and Larimer County")
 
-#plot 6
+#plot 5
 plot(phall$other$xy$lon,phall$other$xy$lat)
 points(phGrand$other$xy$lon,phGrand$other$xy$lat, col="red", cex=2)
 points(phJackson$other$xy$lon,phJackson$other$xy$lat, col="blue", cex=1.5)
 points(phLarimer$other$xy$lon,phLarimer$other$xy$lat, col="green", cex=2)
 points(phJacksonandLarimer$other$xy$lon,phJacksonandLarimer$other$xy$lat, col="purple", cex=5)
+
+dev.off()
 ```
 
 . ** Suggestion is a "partial Mantel testing association between the matrix of genetic distances, a model matrix of cluster membership, with matrix of geographical distances as a covariate** However, with a barrier, this test is not conservative, will still claim isolation by distance (when there is none). 
