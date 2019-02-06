@@ -48,20 +48,22 @@ Want to retain few PCs without losing infomration (look for asymptote)
 
  customize figure
 
-Compute the contributions of the alleles
-```{r}
-myPal <- colorRampPalette(c("blue", "gold", "red"))
-
-contrib <- loadingplot(dapc1$var.contr, axis = 2, thres = 0.025, lab.jitter = 1)
-
-```
-
 
 With troublesome creek  
 ```{r}
 #phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser_10Oct2016/Genepop/PhfoAllGenePop_13Dec2016.gen")
 
 phall <- read.genepop("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Riser/Genepop/PhfoAllGenePop_13Dec2016.gen")
+
+currentlevels <- levels(phall@pop)
+currentlevels[currentlevels=="T"] <- "TC"
+currentlevels[currentlevels=="F"] <- "FC"
+currentlevels[currentlevels=="B"] <- "BR"
+currentlevels[currentlevels=="D"] <- "DJ"
+currentlevels[currentlevels=="P"] <- "PW"
+currentlevels[currentlevels=="R"] <- "RW"
+currentlevels[currentlevels=="V"] <- "VR"
+levels(phall@pop) <- currentlevels
 
 
 phall
@@ -85,20 +87,21 @@ table.value(table(pop(phall), grp3TC$grp), col.labels = 1:3)
 
 
 #Without PhGi, Grand County, Troublesome Creek
-grp2_JL <- find.clusters(phJacksonLarimer, max.n.clust = 20) #kept 100 PCs, that seems high. how does one pick?
+grp2_JL <- find.clusters(phJacksonLarimer, max.n.clust = 20) #kept 100 PCs, that seems high. how does one pick? 2 groups
 table(pop(phJacksonLarimer),grp2_JL$grp)
 table.value(table(pop(phJacksonLarimer), grp2_JL$grp), col.lab = 1:10)
 
-grp3_JL <- find.clusters(phJacksonLarimer, max.n.clust = 20) #kept 100 PCs
+grp3_JL <- find.clusters(phJacksonLarimer, max.n.clust = 20) #kept 100 PCs, 3 groups
 table(pop(phJacksonLarimer),grp3_JL$grp)
 table.value(table(pop(phJacksonLarimer), grp3_JL$grp), col.lab = 1:3)
 
-grp4_JL <- find.clusters(phJacksonLarimer, max.n.clust = 20) #kept 100 PCs
+grp4_JL <- find.clusters(phJacksonLarimer, max.n.clust = 20) #kept 100 PCs, 4 groups
 table(pop(phJacksonLarimer),grp4_JL$grp)
 table.value(table(pop(phJacksonLarimer), grp4_JL$grp), col.lab = 1:3)
 ```
 
 
+# No troublesome creek
 ```{r}
 jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/DAPC_grp2_noTC.jpg",
      width=150, height=125,units='mm', res=300)
@@ -106,6 +109,7 @@ table.value(table(pop(phJacksonLarimer), grp2_JL$grp), col.lab = 1:10)
 dev.off()
 
 ```
+
 ```{r}
 jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/DAPC_grp3_noTC.jpg",
      width=150, height=125,units='mm', res=300)
@@ -113,6 +117,7 @@ table.value(table(pop(phJacksonLarimer), grp3_JL$grp), col.lab = 1:10)
 dev.off()
 
 ```
+
 ```{r}
 jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/DAPC_grp4_noTC.jpg",
      width=150, height=125,units='mm', res=300)
@@ -124,11 +129,11 @@ dev.off()
 
 using inferred groups from before, but now instead of looking at all the PCs, don't use too many so not to overfit.   
 ```{r}
-dapc2 <- dapc(phJacksonLarimer, grp2_JL$grp)
+dapc2 <- dapc(phJacksonLarimer, grp2_JL$grp) #20 PC, 10 discriminant functions
 
 scatter(dapc2)
 
-dapc3 <- dapc(phJacksonLarimer, grp3_JL$grp)
+dapc3 <- dapc(phJacksonLarimer, grp3_JL$grp) # 20 and 10
 scatter(dapc3)
 
 dapc4 <- dapc(phJacksonLarimer, grp4_JL$grp)
@@ -145,6 +150,7 @@ scatter(dapc2) #),  pch = 20:23, cstar = 0, col = myCol, scree.pca = TRUE, posi.
 dev.off()
 
 ```
+
 ```{r}
 jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/DAPC_scatter3_noTC.jpg",
      width=150, height=125,units='mm', res=300)
@@ -152,6 +158,7 @@ scatter(dapc3,  pch = 20:23, cstar = 0, col = myCol, scree.pca = TRUE, posi.pca 
 dev.off()
 
 ```
+
 ```{r}
 jpeg("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/Manuscript/Figures/DAPC_scatter4_noTC.jpg",
      width=150, height=125,units='mm', res=300)
@@ -252,6 +259,14 @@ dapc1
 scatter(dapc1)
 ```
 
+
+Compute the contributions of the alleles
+```{r}
+myPal <- colorRampPalette(c("blue", "gold", "red"))
+
+contrib <- loadingplot(dapc1$var.contr, axis = 2, thres = 0.025, lab.jitter = 1)
+
+```
 
 ```{r}
 # keep the original 14 populations
