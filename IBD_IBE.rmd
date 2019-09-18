@@ -818,6 +818,8 @@ points(phfo.LatLon1, pch=16, col="blue")
 
 save(typeall, file="C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/SoilLayers.Rda")
 
+typeall[[4]]
+
 ```
 
 
@@ -1397,6 +1399,14 @@ rasterstack <- stack(r.typeall)
 
 pathstart <- "Q:/Research/All_Projects_by_Species/Phacelia SPECIES/Phacelia_formosula/Maxent_phfo/Soil_Maxent/"
 
+plot(phfo.prbg[phfo.prbg$County == "Larimer",c("lon","lat")]) +
+plot(r.typeall[[4]], add=TRUE) +
+points(phfo.prbg[phfo.prbg$County == "Larimer",c("lon","lat")])
+```
+
+
+    
+```{r}              
 # Will try with specifying background points
 for(rep in 1:10){
   
@@ -1405,22 +1415,21 @@ for(rep in 1:10){
       
       write.csv(data.frame(phfo.prbg), paste(pathstart,"presence","Rep",rep,sep="")) # oops, but to see which points got what kfold number
       LarimerMaxEnt <- maxent(x = rasterstack, p = phfo.prbg[phfo.prbg$County == "Larimer",c("lon","lat")],
-                              a = phfo.prbg[phfo.prbg$County == "background", c("lon","lat")]) #, 
-                              # path = "C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/larimer")
+                              a = phfo.prbg[phfo.prbg$County == "background", c("lon","lat")], factors = 'layer.4') 
       
       JacksonMaxEnt <- maxent(x = rasterstack, p = phfo.prbg[phfo.prbg$County == "Jackson",c("lon","lat")],
-                              a = phfo.prbg[phfo.prbg$County == "background", c("lon","lat")]) # , 
-                              # path = paste("C:/Users/deprengm/Dropbox/Denver Botanic Gardens Postdoctoral Genetic Files/Phacelia project/jackson", sep=""))
+                              a = phfo.prbg[phfo.prbg$County == "background", c("lon","lat")], factors = 'layer.4') 
       
       
-      #register parallel computing backend
-              ncores <- detectCores()-1
-              cl = parallel::makeCluster(ncores)
-              doParallel::registerDoParallel(cl,ncores)
-              #compute indices for data splitting
-              rows = 1:nrow(rasterstack)
-              split = sort(rows%%ncores)+1
-              
+      #register parallel computing backend      
+      ncores <- detectCores()-1
+      cl = parallel::makeCluster(ncores)
+      doParallel::registerDoParallel(cl,ncores)
+      
+      #compute indices for data splitting
+      rows = 1:nrow(rasterstack)
+      split = sort(rows%%ncores)+1
+          
               outnameL = paste(pathstart, "PredictLarimer",rep,sep="")
               outnameJ = paste(pathstart, "PredictJackson", rep, sep="")
               
@@ -1429,8 +1438,8 @@ for(rep in 1:10){
                 rows_sub = rows[split==i]
                 sub = raster::crop(rasterstack,raster::extent(rasterstack, min(rows_sub), max(rows_sub), 
                                                               1, ncol(rasterstack)))
-                raster::predict(sub, LarimerMaxEnt, filename=paste(outnameL,"LarimerRep",rep,"slice",i,sep=""), overwrite=TRUE)
-                raster::predict(sub, JAcksonMaxEnt, filename=paste(outnameJ,"JacksonRep",rep,"slice",i,sep=""), overwrite=TRUE)
+                raster::predict(sub, LarimerMaxEnt, filename=paste(outnameL,"Rep",rep,"slice",i,sep=""), overwrite=TRUE)
+                raster::predict(sub, JacksonMaxEnt, filename=paste(outnameJ,"Rep",rep,"slice",i,sep=""), overwrite=TRUE)
               }
               
               eL <- evaluate(phfo.prbg[phfo.prbg$kfold==1 & phfo.prbg$County == "Larimer",c("lon","lat")], 
@@ -1455,7 +1464,7 @@ lapply(c("Jackson","Larimer"), function(i){
   
   # pull all slices (11 here) and then stitch together
   lapply(1:10, function(k){
-    patternmatch <- paste("Predict",i,k,i,"Rep", sep="")
+    patternmatch <- paste("Predict",i,k,"Rep", sep="")
 
     resultpath <- list.files(path = pathstart, 
                              pattern = paste(patternmatch,k,"slice",sep=""), 
@@ -1479,9 +1488,24 @@ overlapsLarimer_Jackson <- lapply(1:10, function(x){
   d_out
   })
 
-hist(overlapsLarimer_Jackson)
+overlapsLarimer_Jackson_I <- lapply(1:10, function(x){
+  r1 <- raster(paste(pathstart, "ProbTiffCountyLarimerRep",x,".tif",sep=""))
+  r2 <- raster(paste(pathstart, "ProbTiffCountyJacksonRep",x,".tif",sep=""))
+  d_out <- nicheOverlap(r1,r2,mask=FALSE, checkNegatives = FALSE, stat="I")
+  d_out
+  })
 
-Equivalency <- nicheEquivalency()
+hist(do.call(c,overlapsLarimer_Jackson))
+
+Equivalency <- nicheEquivalency(phfo.prbg[phfo.prbg$County == "Larimer",c("lon","lat")], 
+                                phfo.prbg[phfo.prbg$County == "Jackson",c("lon","lat")],
+                                rasterstack)  # default model is maxent, will do 99 randomizations
+hist(Equivalency$null.distribution[,1], main="", xlab= "Schoener's D")
+hist(Equivalency$null.distribution[,2], main="", xlab= "Warren's I")
+
+save(Equivalency, file=paste(pathstart, "Equivalency.Rda", sep="" ))
+save(overlapsLarimer_Jackson, file=paste(pathstart, "overlapL_J_SchoenersD.Rda", sep=""))
+save(overlapsLarimer_Jackson_I, file=paste(pathstart, "overlapL_J_I.Rda", sep=""))
 
 ```
 
